@@ -13,10 +13,15 @@ If you're working in a moltworker project and want to push to Open-Stellar, foll
    cd /workspaces/moltworker
    ```
 
-2. Run the setup script:
+2. Download and review the setup script:
    ```bash
-   curl -sSL https://raw.githubusercontent.com/leocagli/Open-Stellar/main/setup-remote.sh | bash
+   curl -sSL -o setup-remote.sh https://raw.githubusercontent.com/leocagli/Open-Stellar/main/setup-remote.sh
+   cat setup-remote.sh  # Review the script before running
+   chmod +x setup-remote.sh
+   ./setup-remote.sh
    ```
+
+   **Security Note**: Always review scripts before executing them on your system.
 
 3. Push your main branch:
    ```bash

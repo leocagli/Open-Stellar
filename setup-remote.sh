@@ -19,14 +19,14 @@ REMOTE_NAME="stellar"
 # Check if remote already exists
 if git remote | grep -q "^${REMOTE_NAME}$"; then
     echo "Remote '${REMOTE_NAME}' already exists. Updating URL..."
-    git remote set-url ${REMOTE_NAME} ${REMOTE_URL}
+    git remote set-url "${REMOTE_NAME}" "${REMOTE_URL}"
 else
     echo "Adding remote '${REMOTE_NAME}'..."
-    git remote add ${REMOTE_NAME} ${REMOTE_URL}
+    git remote add "${REMOTE_NAME}" "${REMOTE_URL}"
 fi
 
 echo "Remote configuration:"
-git remote -v | grep ${REMOTE_NAME}
+git remote -v | grep "${REMOTE_NAME}"
 
 echo ""
 echo "✓ Setup complete!"
