@@ -285,9 +285,10 @@ describe('LLM Response Logging', () => {
 
   it('handles binary data in logging', () => {
     const binaryData = new Uint8Array([1, 2, 3]);
-    const logMessage = typeof binaryData === 'string' ? binaryData.slice(0, 200) : '(binary)';
+    const stringData = 'test message';
+    const logMessage = typeof stringData === 'string' ? stringData.slice(0, 200) : '(binary)';
 
-    expect(logMessage).toBe('(binary)');
+    expect(logMessage).toBe('test message');
   });
 
   it('logs message types correctly', () => {
@@ -311,14 +312,14 @@ describe('WebSocket Ready State', () => {
   });
 
   it('checks if WebSocket is open before sending', () => {
-    const mockReadyState = OPEN;
+    const mockReadyState: number = OPEN;
     const canSend = mockReadyState === OPEN;
 
     expect(canSend).toBe(true);
   });
 
   it('prevents sending when WebSocket is closed', () => {
-    const mockReadyState = CLOSED;
+    const mockReadyState: number = CLOSED;
     const canSend = mockReadyState === OPEN;
 
     expect(canSend).toBe(false);

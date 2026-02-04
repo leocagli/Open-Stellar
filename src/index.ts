@@ -28,23 +28,9 @@ import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
 import { publicRoutes, api, adminUi, debug, cdp } from './routes';
+import { transformErrorMessage } from './utils/response';
 import loadingPageHtml from './assets/loading.html';
 import configErrorHtml from './assets/config-error.html';
-
-/**
- * Transform error messages from the gateway to be more user-friendly.
- */
-function transformErrorMessage(message: string, host: string): string {
-  if (message.includes('gateway token missing') || message.includes('gateway token mismatch')) {
-    return `Invalid or missing token. Visit https://${host}?token={REPLACE_WITH_YOUR_TOKEN}`;
-  }
-  
-  if (message.includes('pairing required')) {
-    return `Pairing required. Visit https://${host}/_admin/`;
-  }
-  
-  return message;
-}
 
 export { Sandbox };
 

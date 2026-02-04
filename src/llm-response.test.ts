@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { transformErrorMessage } from './utils/response';
 
 /**
  * Tests for LLM response handling and transformation
@@ -8,22 +9,6 @@ import { describe, it, expect } from 'vitest';
  * 2. WebSocket messages are properly intercepted
  * 3. LLM responses maintain integrity
  */
-
-/**
- * Transform error messages from the gateway to be more user-friendly.
- * This is extracted from src/index.ts for testing purposes.
- */
-function transformErrorMessage(message: string, host: string): string {
-  if (message.includes('gateway token missing') || message.includes('gateway token mismatch')) {
-    return `Invalid or missing token. Visit https://${host}?token={REPLACE_WITH_YOUR_TOKEN}`;
-  }
-  
-  if (message.includes('pairing required')) {
-    return `Pairing required. Visit https://${host}/_admin/`;
-  }
-  
-  return message;
-}
 
 describe('transformErrorMessage', () => {
   const testHost = 'example.workers.dev';
