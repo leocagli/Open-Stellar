@@ -81,12 +81,28 @@ npm run typecheck     # TypeScript check
 Tests use Vitest. Test files are colocated with source files (`*.test.ts`).
 
 Current test coverage:
-- `auth/jwt.test.ts` - JWT decoding and validation
-- `auth/jwks.test.ts` - JWKS fetching and caching
-- `auth/middleware.test.ts` - Auth middleware behavior
-- `gateway/env.test.ts` - Environment variable building
-- `gateway/process.test.ts` - Process finding logic
-- `gateway/r2.test.ts` - R2 mounting logic
+- `auth/jwt.test.ts` - JWT decoding and validation (7 tests)
+- `auth/middleware.test.ts` - Auth middleware behavior (18 tests)
+- `gateway/env.test.ts` - Environment variable building (16 tests)
+- `gateway/process.test.ts` - Process finding logic (8 tests)
+- `gateway/r2.test.ts` - R2 mounting logic (9 tests)
+- `gateway/sync.test.ts` - R2 backup sync logic (6 tests)
+- `llm-response.test.ts` - LLM response handling and transformation (26 tests)
+  - Error message transformation
+  - WebSocket message validation
+  - LLM response structure validation
+  - Streaming response handling
+  - Close reason transformation
+- `proxy-integration.test.ts` - HTTP/WebSocket proxy integration (34 tests)
+  - HTTP response proxying
+  - WebSocket message interception
+  - Error handling and recovery
+  - URL and query parameter handling
+  - Content type detection
+  - Loading page behavior
+  - Process status validation
+
+**Total: 124 tests**
 
 When adding new functionality, add corresponding tests.
 

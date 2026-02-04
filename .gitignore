@@ -34,5 +34,8 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 
+# Test coverage
+coverage/
+
 # Docker build artifacts
 *.tar
