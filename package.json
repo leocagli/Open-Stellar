@@ -17,10 +17,13 @@
   },
   "dependencies": {
     "@cloudflare/puppeteer": "^1.0.5",
+    "@stellar/freighter-api": "^6.0.1",
+    "@stellar/stellar-sdk": "^14.5.0",
     "hono": "^4.11.6",
     "jose": "^6.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "stellar-sdk": "^13.3.0"
   },
   "devDependencies": {
     "@cloudflare/sandbox": "*",

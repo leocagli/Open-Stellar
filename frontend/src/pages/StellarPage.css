@@ -1,0 +1,441 @@
+/**
+ * Stellar Claw2Claw Page Styles
+ */
+
+.stellar-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+}
+
+.stellar-header {
+  text-align: center;
+  color: white;
+  margin-bottom: 3rem;
+}
+
+.stellar-header h1 {
+  font-size: 3rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.stellar-header p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+.stellar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.section h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #333;
+  font-size: 1.8rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  margin: 0;
+}
+
+/* Wallet Connect Styles */
+.wallet-connect {
+  text-align: center;
+}
+
+.wallet-connected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.wallet-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #10b981;
+}
+
+.public-key {
+  font-family: monospace;
+  font-size: 1rem;
+  color: #666;
+}
+
+.wallet-connect.not-installed {
+  padding: 2rem;
+  text-align: center;
+}
+
+.wallet-connect.not-installed h3 {
+  color: #f59e0b;
+  margin-bottom: 0.5rem;
+}
+
+/* Bot Registration Form Styles */
+.bot-registration-form h2 {
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.form-group input[type="text"],
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.form-group input[type="text"]:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.capabilities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.capability-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.capability-checkbox:hover {
+  background-color: #f9fafb;
+}
+
+.capability-checkbox input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.capability-checkbox span {
+  text-transform: capitalize;
+}
+
+/* Bot Info Card */
+.bot-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.bot-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #111;
+}
+
+.bot-card p {
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.bot-capabilities {
+  margin-bottom: 1rem;
+}
+
+.bot-capabilities strong {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.capability-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.capability-tag {
+  background: #667eea;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  text-transform: capitalize;
+}
+
+.bot-meta small {
+  color: #999;
+}
+
+/* Orders and Escrows Lists */
+.orders-list,
+.escrows-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.order-card,
+.escrow-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.order-header,
+.escrow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.order-id,
+.escrow-id {
+  font-family: monospace;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.order-timestamp,
+.escrow-unlock {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.order-details {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.order-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.order-side label {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.order-side span {
+  font-weight: 600;
+  color: #111;
+}
+
+.order-arrow {
+  font-size: 1.5rem;
+  color: #667eea;
+}
+
+.order-price {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.order-price label {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.order-price span {
+  font-weight: 600;
+  color: #111;
+}
+
+.escrow-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.escrow-amount,
+.escrow-parties div {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.escrow-amount label,
+.escrow-parties label {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.escrow-amount span,
+.escrow-parties span {
+  font-weight: 600;
+  color: #111;
+}
+
+.escrow-parties {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.address {
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  color: #999;
+  padding: 2rem;
+  font-style: italic;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #5568d3;
+}
+
+.btn-secondary {
+  background: #e5e7eb;
+  color: #333;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #d1d5db;
+}
+
+/* Alerts */
+.alert {
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.alert-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.alert-success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.alert-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+/* Loading State */
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .stellar-page {
+    padding: 1rem;
+  }
+
+  .stellar-header h1 {
+    font-size: 2rem;
+  }
+
+  .section {
+    padding: 1.5rem;
+  }
+
+  .wallet-connected {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .capabilities-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .order-details {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .order-arrow {
+    text-align: center;
+    transform: rotate(90deg);
+  }
+
+  .escrow-parties {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}

@@ -28,6 +28,7 @@ import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
 import { publicRoutes, api, adminUi, debug, cdp } from './routes';
+import stellar from './routes/stellar';
 import loadingPageHtml from './assets/loading.html';
 import configErrorHtml from './assets/config-error.html';
 
@@ -195,6 +196,9 @@ app.use('*', async (c, next) => {
 
 // Mount API routes (protected by Cloudflare Access)
 app.route('/api', api);
+
+// Mount Stellar API routes (protected by Cloudflare Access)
+app.route('/stellar', stellar);
 
 // Mount Admin UI routes (protected by Cloudflare Access)
 app.route('/_admin', adminUi);
