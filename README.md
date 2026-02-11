@@ -16,6 +16,12 @@
 
 ## 🚀 Quick Start
 
+### Prerequisites
+
+- Node.js 18+ and npm
+- Cloudflare account (for deployment)
+- [Freighter Wallet](https://www.freighter.app/) (for Stellar features)
+
 ### 1. Get Your Free Groq API Key
 
 1. Go to [console.groq.com](https://console.groq.com/)
@@ -45,6 +51,9 @@ MOLTBOT_GATEWAY_TOKEN=your_groq_api_key_here
 # Development Settings
 DEV_MODE=true
 DEBUG_ROUTES=true
+
+# Stellar Configuration (optional)
+STELLAR_NETWORK=testnet  # or 'mainnet'
 ```
 
 ### 4. Build and Run
@@ -55,6 +64,8 @@ npm run start
 ```
 
 Visit `http://localhost:8789` in your browser.
+
+For Stellar features, navigate to `/stellar` route.
 
 ## 📚 Available Models
 
@@ -67,15 +78,74 @@ Open Stellar automatically configures these Groq models:
 
 ## 🏗️ Architecture
 
+### Moltbot AI Gateway
 ```
 Browser → Cloudflare Worker → Sandbox Container → Moltbot Gateway → Groq API
 ```
 
 The worker proxies HTTP and WebSocket traffic to a Moltbot instance running in a Cloudflare Sandbox container, which then communicates with the Groq API.
 
+### Stellar Blockchain Integration
+```
+Browser → Freighter Wallet → Stellar API (/stellar/*) → Stellar Horizon → Stellar Network
+```
+
+The Stellar integration provides a complete P2P bot trading platform with:
+- Wallet-based authentication via Freighter
+- Time-locked escrows using claimableBalances
+- Order matching on Stellar's native DEX
+- Bot registry with on-chain verification
+
+## 🌟 Stellar Blockchain Features
+
+### Quick Start with Stellar
+
+1. **Install Freighter Wallet**
+   - Visit [freighter.app](https://www.freighter.app/)
+   - Add to your browser (Chrome, Firefox, Edge)
+   - Create or import a Stellar account
+
+2. **Get Testnet XLM**
+   - Visit [Stellar Laboratory](https://laboratory.stellar.org/#account-creator)
+   - Generate a new keypair on testnet
+   - Fund it with [Friendbot](https://friendbot.stellar.org)
+
+3. **Access Stellar Features**
+   - Navigate to `http://localhost:8789/stellar` (or your deployed URL)
+   - Connect your Freighter wallet
+   - Register your bot with capabilities
+   - Start trading!
+
+### Stellar API Endpoints
+
+All Stellar endpoints are available at `/stellar/*`:
+
+**Bot Management:**
+- `POST /stellar/bot/register` - Register a new bot
+- `GET /stellar/bot/:publicKey` - Get bot details
+- `GET /stellar/bots` - List all bots
+- `PUT /stellar/bot/:publicKey` - Update bot
+- `DELETE /stellar/bot/:publicKey` - Unregister bot
+
+**Escrow Operations:**
+- `GET /stellar/escrow/:balanceId` - Get escrow details
+- `GET /stellar/escrows/:publicKey` - List account escrows
+
+**DEX Operations:**
+- `GET /stellar/orders/:publicKey` - Get active orders
+- `GET /stellar/orderbook` - Get order book
+- `POST /stellar/paths` - Find payment paths
+
+**Account Info:**
+- `GET /stellar/account/:publicKey` - Get account details
+- `GET /stellar/account/:publicKey/balance` - Get balances
+
+See [STELLAR_INTEGRATION.md](STELLAR_INTEGRATION.md) for detailed documentation.
+
 ## 📖 Documentation
 
 - [`AGENTS.md`](AGENTS.md) - Development guide for AI agents
+- [`STELLAR_INTEGRATION.md`](STELLAR_INTEGRATION.md) - **Complete Stellar blockchain integration guide** ⭐
 - [`README.md`](README.md) - This file
 - [`CREATE_OPEN_STELLAR.md`](CREATE_OPEN_STELLAR.md) - Repository setup guide
 
