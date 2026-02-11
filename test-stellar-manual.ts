@@ -1,6 +1,6 @@
 /**
  * Manual test script for Stellar integration
- * Run with: node --loader ts-node/esm test-stellar.ts
+ * Run with: node --loader ts-node/esm test-stellar-manual.ts
  */
 
 import { generateKeypair, createAgentIdentity, getNetworkConfig } from './src/stellar/identity/wallet.js';
