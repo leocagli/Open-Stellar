@@ -80,7 +80,7 @@ export function requirePayment(
  * @returns Promise<boolean> indicating if payment is verified
  */
 export async function isPaymentVerified(paymentId: string): Promise<boolean> {
-  // TODO: Implement actual verification against payment tracking system
-  // For now, this is a placeholder that will be implemented with 8004
-  return false;
+  const { getPaymentStatus } = await import('./8004');
+  const status = getPaymentStatus(paymentId);
+  return status !== null && status.status === 'confirmed';
 }

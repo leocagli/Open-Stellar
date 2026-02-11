@@ -108,6 +108,10 @@ payments.post('/escrow/create', async (c) => {
  * POST /payments/escrow/:escrowId/fund
  * 
  * Fund an escrow contract
+ * 
+ * SECURITY WARNING: This endpoint is for DEMONSTRATION ONLY.
+ * In production, implement client-side signing with Freighter or similar wallet.
+ * Never send secret keys over the network!
  */
 payments.post('/escrow/:escrowId/fund', async (c) => {
   const escrowId = c.req.param('escrowId');
@@ -118,9 +122,13 @@ payments.post('/escrow/:escrowId/fund', async (c) => {
     return c.json({ error: 'Missing buyerSecretKey' }, 400);
   }
   
+  // SECURITY: In production, replace this with:
+  // 1. Client-side wallet signing (Freighter, Albedo, etc.)
+  // 2. Session-based authentication
+  // 3. Multi-signature transactions
+  // DO NOT accept secret keys in production!
+  
   try {
-    // In production, you wouldn't accept the secret key directly
-    // This is for demonstration purposes only
     const { loadKeypair } = await import('../payments/stellar');
     const buyerKeypair = loadKeypair(buyerSecretKey);
     
@@ -135,6 +143,10 @@ payments.post('/escrow/:escrowId/fund', async (c) => {
  * POST /payments/escrow/:escrowId/release
  * 
  * Release escrow funds to seller
+ * 
+ * SECURITY WARNING: This endpoint is for DEMONSTRATION ONLY.
+ * In production, implement client-side signing with Freighter or similar wallet.
+ * Never send secret keys over the network!
  */
 payments.post('/escrow/:escrowId/release', async (c) => {
   const escrowId = c.req.param('escrowId');
@@ -144,6 +156,8 @@ payments.post('/escrow/:escrowId/release', async (c) => {
   if (!signerSecretKey) {
     return c.json({ error: 'Missing signerSecretKey' }, 400);
   }
+  
+  // SECURITY: See fundEscrow endpoint comments above
   
   try {
     const { loadKeypair } = await import('../payments/stellar');
@@ -160,6 +174,10 @@ payments.post('/escrow/:escrowId/release', async (c) => {
  * POST /payments/escrow/:escrowId/refund
  * 
  * Refund escrow funds to buyer
+ * 
+ * SECURITY WARNING: This endpoint is for DEMONSTRATION ONLY.
+ * In production, implement client-side signing with Freighter or similar wallet.
+ * Never send secret keys over the network!
  */
 payments.post('/escrow/:escrowId/refund', async (c) => {
   const escrowId = c.req.param('escrowId');
@@ -169,6 +187,8 @@ payments.post('/escrow/:escrowId/refund', async (c) => {
   if (!signerSecretKey) {
     return c.json({ error: 'Missing signerSecretKey' }, 400);
   }
+  
+  // SECURITY: See fundEscrow endpoint comments above
   
   try {
     const { loadKeypair } = await import('../payments/stellar');

@@ -2,8 +2,19 @@
  * Tests for 8004 Payment Validation Function
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { process8004, getPaymentStatus, markPaymentVerified, cleanupOldPayments } from './8004';
+
+// Mock the stellar module
+vi.mock('./stellar', () => ({
+  getTransaction: vi.fn(async (txHash: string) => {
+    // Mock successful transaction
+    if (txHash.startsWith('tx_')) {
+      return { successful: true, hash: txHash };
+    }
+    return null;
+  }),
+}));
 
 describe('8004 - Payment Validation', () => {
   beforeEach(() => {
@@ -80,6 +91,16 @@ describe('8004 - Payment Validation', () => {
   it('should handle marking non-existent payment', () => {
     // Should not throw error
     expect(() => markPaymentVerified('pay_nonexistent')).not.toThrow();
+  });
+  
+  it('should reject invalid transaction', async () => {
+    const result = await process8004({
+      paymentId: 'pay_invalid',
+      transactionHash: 'invalid_hash', // doesn't match mock pattern
+    });
+    
+    expect(result.validated).toBe(false);
+    expect(result.status).toBe('failed');
   });
 });
 

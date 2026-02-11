@@ -78,15 +78,30 @@ export async function process8004(
 async function validateStellarTransaction(
   transactionHash: string
 ): Promise<{ valid: boolean; confirmations: number }> {
-  // TODO: Implement actual Stellar network validation
-  // This will use the Stellar SDK to query the transaction
-  // and verify it matches the expected payment details
-  
-  // Placeholder implementation
-  return {
-    valid: true,
-    confirmations: 1,
-  };
+  try {
+    // Import verifyPayment from stellar module
+    const { getTransaction } = await import('./stellar');
+    
+    // Verify transaction exists on Stellar network
+    const tx = await getTransaction(transactionHash);
+    
+    if (!tx) {
+      return { valid: false, confirmations: 0 };
+    }
+    
+    // Calculate confirmations based on ledger age
+    // For simplicity, if transaction is confirmed it has at least 1 confirmation
+    // In production, you would calculate actual confirmations based on current ledger
+    const confirmations = tx.successful ? 1 : 0;
+    
+    return {
+      valid: tx.successful,
+      confirmations,
+    };
+  } catch (error) {
+    console.error('Error validating Stellar transaction:', error);
+    return { valid: false, confirmations: 0 };
+  }
 }
 
 /**
