@@ -1,10 +1,3 @@
-# Open-Stellar
-
-### **Descripción del Proyecto**
-Open-Stellar es un repositorio enfocado en la integración de agentes inteligentes y flujos de pago mediante Stellar y Trustless, complementado por APIs de inteligencia artificial y visualizaciones en 3D.
-
----
-
 # 🌟 Open Stellar
 
 > AI-powered Moltbot gateway running on Cloudflare Workers with **free** Groq LLM integration
@@ -102,29 +95,69 @@ npm run typecheck  # TypeScript type checking
 ### Prerequisites
 
 - Cloudflare account
+- Wrangler CLI configured
+- Domain (optional, workers.dev provided by default)
 
-### **Estructura del Proyecto**
-#### Carpetas Principales:
-- `/api-integrations`: Wrappers y configuración para interactuar con APIs externas (Groq, OpenRouter, ChatGPT Pro).
-- `/agents`: Lógica de los agentes inteligentes y sus roles.
-- `/payments`: Implementación de pagos con Stellar Trustless y manejo de escrow.
-- `/mvp-generation`: Lógica para generar productos mínimos viables (MVPs).
-- `/visualization`: Simulación 3D usando Three.js.
-- `/tests`: Pruebas automatizadas y de integración.
+### Deploy
+
+```bash
+# Set production secrets
+npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put MOLTBOT_GATEWAY_TOKEN
+
+# Deploy
+npm run deploy
+```
+
+Your worker will be available at `https://your-worker.your-subdomain.workers.dev`
+
+## 🔐 Security Notes
+
+- Never commit `.dev.vars` to git (already in `.gitignore`)
+- Use `npx wrangler secret put` for production secrets
+- The `MOLTBOT_GATEWAY_TOKEN` should match your `OPENAI_API_KEY` for simplicity
+- Enable Cloudflare Access for production deployments
+
+## 📝 Environment Variables
+
+### Required
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | Your Groq API key | `gsk_...` |
+| `OPENAI_BASE_URL` | Groq API endpoint | `https://api.groq.com/openai/v1` |
+| `MOLTBOT_GATEWAY_TOKEN` | Gateway authentication token | Same as API key |
+
+### Optional
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DEV_MODE` | Skip authentication checks | `false` |
+| `DEBUG_ROUTES` | Enable `/debug/*` endpoints | `false` |
+| `R2_ACCESS_KEY_ID` | R2 storage access key | - |
+| `R2_SECRET_ACCESS_KEY` | R2 storage secret | - |
+| `CF_ACCOUNT_ID` | Cloudflare account ID | - |
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## 🙏 Acknowledgments
+
+- Built on [Moltbot](https://molt.bot/) by Anthropic
+- Powered by [Groq](https://groq.com/) for lightning-fast LLM inference
+- Running on [Cloudflare Workers](https://workers.cloudflare.com/)
+
+## 🔗 Links
+
+- [Groq Documentation](https://console.groq.com/docs)
+- [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
+- [Moltbot Documentation](https://docs.molt.bot/)
 
 ---
 
-### **Fases del Desarrollo**
-1. **Arquitectura Inicial y Configuración**: Estandarización de la estructura y preparación del entorno.
-2. **Integración de APIs**: Implementación de interacción con Groq, OpenRouter y ChatGPT Pro.
-3. **Flujo de Pagos Trustless**: Configuración del protocolo de pagos usando Stellar Trustless.
-4. **Interacción entre Agentes**: Implementación de flujos de trabajo y validación del sistema.
-5. **Visualización en 3D**: Creación de un entorno interactivo utilizando mapas o ciudades renderizadas con Three.js.
-
-### **Contribuyendo**
-- Crea nuevos issues para reportar errores o sugerir mejoras.
-- Usa ramas específicas para desarrollar nuevas funcionalidades.
-- Asegúrate de incluir pruebas para garantizar la calidad del código.
-
-### **Objetivo Final**
-Permitir la interacción eficiente entre agentes inteligentes simulada a través de APIs y flujos gráficos, logrando un manejo completo de pagos y servicios con Stellar.
+Made with ❤️ for the open source community
