@@ -6,6 +6,7 @@
   "description": "Run Moltbot personal AI assistant in a Cloudflare Sandbox",
   "scripts": {
     "build": "vite build",
+    "build:contracts": "cd contracts/escrow && cargo build --target wasm32-unknown-unknown --release && cd ../timelock && cargo build --target wasm32-unknown-unknown --release",
     "deploy": "npm run build && wrangler deploy",
     "dev": "vite dev",
     "start": "wrangler dev",
@@ -13,10 +14,13 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:contracts": "cd contracts/escrow && cargo test && cd ../timelock && cargo test"
   },
   "dependencies": {
     "@cloudflare/puppeteer": "^1.0.5",
+    "@stellar/freighter-api": "^2.0.0",
+    "@stellar/stellar-sdk": "^12.3.0",
     "hono": "^4.11.6",
     "jose": "^6.0.0",
     "react": "^19.0.0",

@@ -1,37 +1,40 @@
-# Open-Stellar
+# 🌟 Open Stellar - Claw2Claw on Stellar Blockchain
 
-### **Descripción del Proyecto**
-Open-Stellar es un repositorio enfocado en la integración de agentes inteligentes y flujos de pago mediante Stellar y Trustless, complementado por APIs de inteligencia artificial y visualizaciones en 3D.
-
----
-
-# 🌟 Open Stellar
-
-> AI-powered Moltbot gateway running on Cloudflare Workers with **free** Groq LLM integration
+> Decentralized trading platform built on Stellar blockchain with Soroban smart contracts and Freighter wallet integration
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/leocagli/Open-Stellar)
 
+### **Project Description**
+Open-Stellar is a complete migration of the Claw2Claw project to the Stellar blockchain, replacing Ethereum infrastructure with Stellar's native features, DEX functionality, and Soroban smart contracts for programmable logic.
+
 ## ✨ Features
 
-- 🚀 **Cloudflare Workers** - Runs at the edge, globally distributed
-- 🤖 **Groq Integration** - Free LLM API with **Llama 3.3 70B** (14,400 requests/day)
-- 🔒 **Secure** - Token-based authentication with DEV_MODE support
-- 🌐 **WebSocket Support** - Real-time chat interface with message streaming
-- 💾 **R2 Storage** - Optional persistent storage for chat history
-- 🎯 **Admin UI** - Built-in React dashboard for device management
-- 🔧 **Debug Routes** - Development tools and API testing endpoints
+### Blockchain Infrastructure
+- 🌐 **Stellar Blockchain** - Native integration with Stellar network (testnet/mainnet)
+- 💎 **Soroban Smart Contracts** - Rust-based contracts for escrow and time-locked orders
+- 👛 **Freighter Wallet** - Seamless wallet connection for bot registration and transactions
+- 🔄 **Stellar DEX** - Decentralized asset swaps using path payments
+- 🔒 **Claimable Balances** - Time-locked orders with Stellar's native feature
+- 🌉 **Cross-Chain Ready** - Prepared for LI.FI integration for cross-chain swaps
+
+### Platform Features
+- 🤖 **Bot Registration** - Register trading bots with Stellar addresses
+- 💱 **Asset Swaps** - Trade assets using Stellar's decentralized exchange
+- 🛡️ **Escrow System** - Secure fund holding with arbiter support
+- ⏰ **Time-Locked Orders** - Create and manage delayed transactions
+- 🎯 **React Frontend** - Modern UI for all trading operations
+- 📡 **REST API** - Comprehensive backend for all blockchain operations
 
 ## 🚀 Quick Start
 
-### 1. Get Your Free Groq API Key
+### Prerequisites
 
-1. Go to [console.groq.com](https://console.groq.com/)
-2. Sign up for a free account
-3. Navigate to **API Keys** section
-4. Click **Create API Key**
-5. Copy your key (starts with `gsk_...`)
+- Node.js 18+
+- Rust (for smart contracts)
+- Stellar CLI: `cargo install --locked stellar-cli`
+- Freighter Wallet browser extension
 
-### 2. Clone and Setup
+### 1. Clone and Install
 
 ```bash
 git clone https://github.com/leocagli/Open-Stellar.git
@@ -39,12 +42,16 @@ cd Open-Stellar
 npm install
 ```
 
-### 3. Configure Environment
+### 2. Configure Environment
 
 Create `.dev.vars` file:
 
 ```bash
-# Groq Configuration
+# Stellar Network
+STELLAR_NETWORK=testnet
+STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
+
+# API Configuration (for AI features)
 OPENAI_API_KEY=your_groq_api_key_here
 OPENAI_BASE_URL=https://api.groq.com/openai/v1
 MOLTBOT_GATEWAY_TOKEN=your_groq_api_key_here
@@ -54,6 +61,20 @@ DEV_MODE=true
 DEBUG_ROUTES=true
 ```
 
+### 3. Build Smart Contracts
+
+```bash
+# Build Soroban contracts
+npm run build:contracts
+
+# Deploy to Stellar testnet
+cd contracts/escrow
+stellar contract deploy --wasm target/wasm32-unknown-unknown/release/escrow.wasm --network testnet
+
+cd ../timelock
+stellar contract deploy --wasm target/wasm32-unknown-unknown/release/timelock.wasm --network testnet
+```
+
 ### 4. Build and Run
 
 ```bash
@@ -61,40 +82,52 @@ npm run build
 npm run start
 ```
 
-Visit `http://localhost:8789` in your browser.
-
-## 📚 Available Models
-
-Open Stellar automatically configures these Groq models:
-
-- **Llama 3.3 70B Versatile** (Primary) - 131K context
-- **Llama 3.1 70B Versatile** - 131K context
-- **Mixtral 8x7B** - 32K context
-- **Gemma 2 9B** - 8K context
+Visit `http://localhost:8789` and connect your Freighter wallet.
 
 ## 🏗️ Architecture
 
 ```
-Browser → Cloudflare Worker → Sandbox Container → Moltbot Gateway → Groq API
+Frontend (React)
+    ↓
+Freighter Wallet ←→ User Authentication
+    ↓
+Backend API (Hono)
+    ↓
+Stellar SDK
+    ↓
+├─→ Stellar Horizon (DEX, Transactions)
+├─→ Soroban Contracts (Escrow, Time-Lock)
+└─→ Claimable Balances (Native Stellar)
 ```
 
-The worker proxies HTTP and WebSocket traffic to a Moltbot instance running in a Cloudflare Sandbox container, which then communicates with the Groq API.
+### Technology Stack
+
+- **Frontend**: React 19 + TypeScript
+- **Backend**: Hono (Cloudflare Workers)
+- **Blockchain**: Stellar SDK
+- **Smart Contracts**: Soroban (Rust)
+- **Wallet**: Freighter API
+- **Deployment**: Cloudflare Workers
 
 ## 📖 Documentation
 
+- [`STELLAR_MIGRATION.md`](STELLAR_MIGRATION.md) - Complete migration guide and API documentation
 - [`AGENTS.md`](AGENTS.md) - Development guide for AI agents
-- [`README.md`](README.md) - This file
 - [`CREATE_OPEN_STELLAR.md`](CREATE_OPEN_STELLAR.md) - Repository setup guide
+- [Stellar Developer Docs](https://developers.stellar.org/)
+- [Soroban Documentation](https://soroban.stellar.org/)
 
 ## 🔧 Development
 
 ```bash
-npm run dev        # Start Vite dev server for UI development
-npm run start      # Start wrangler dev (local worker)
-npm run build      # Build worker + client
-npm run deploy     # Deploy to Cloudflare Workers
-npm run test       # Run tests with Vitest
-npm run typecheck  # TypeScript type checking
+npm run dev              # Start Vite dev server for UI development
+npm run start            # Start wrangler dev (local worker)
+npm run build            # Build worker + client
+npm run build:contracts  # Build Soroban contracts
+npm run test             # Run tests with Vitest
+npm run test:contracts   # Run contract tests
+npm run typecheck        # TypeScript type checking
+npm run deploy           # Deploy to Cloudflare Workers
 ```
 
 ## 🌐 Deployment
@@ -103,28 +136,48 @@ npm run typecheck  # TypeScript type checking
 
 - Cloudflare account
 
-### **Estructura del Proyecto**
-#### Carpetas Principales:
-- `/api-integrations`: Wrappers y configuración para interactuar con APIs externas (Groq, OpenRouter, ChatGPT Pro).
-- `/agents`: Lógica de los agentes inteligentes y sus roles.
-- `/payments`: Implementación de pagos con Stellar Trustless y manejo de escrow.
-- `/mvp-generation`: Lógica para generar productos mínimos viables (MVPs).
-- `/visualization`: Simulación 3D usando Three.js.
-- `/tests`: Pruebas automatizadas y de integración.
+## 📁 Project Structure
 
----
+```
+Open-Stellar/
+├── contracts/          # Soroban smart contracts (Rust)
+│   ├── escrow/        # Escrow contract for secure transactions
+│   └── timelock/      # Time-locked orders contract
+├── stellar-sdk/       # Stellar SDK integration layer
+│   ├── network.ts     # Network configuration
+│   ├── wallet.ts      # Freighter wallet integration
+│   ├── dex.ts         # DEX functionality
+│   └── claimable-balance.ts  # Claimable balance management
+├── backend/api/       # Backend API endpoints
+│   ├── bots.ts        # Bot registration endpoints
+│   ├── swap.ts        # Asset swap endpoints
+│   ├── escrow.ts      # Escrow management
+│   └── orders.ts      # Time-locked orders
+└── frontend/src/      # React frontend application
+    ├── components/    # UI components
+    │   ├── WalletConnect.tsx
+    │   ├── BotRegistration.tsx
+    │   ├── SwapInterface.tsx
+    │   └── EscrowManager.tsx
+    └── App.tsx        # Main application
+```
 
-### **Fases del Desarrollo**
-1. **Arquitectura Inicial y Configuración**: Estandarización de la estructura y preparación del entorno.
-2. **Integración de APIs**: Implementación de interacción con Groq, OpenRouter y ChatGPT Pro.
-3. **Flujo de Pagos Trustless**: Configuración del protocolo de pagos usando Stellar Trustless.
-4. **Interacción entre Agentes**: Implementación de flujos de trabajo y validación del sistema.
-5. **Visualización en 3D**: Creación de un entorno interactivo utilizando mapas o ciudades renderizadas con Three.js.
+## 🎯 Use Cases
 
-### **Contribuyendo**
-- Crea nuevos issues para reportar errores o sugerir mejoras.
-- Usa ramas específicas para desarrollar nuevas funcionalidades.
-- Asegúrate de incluir pruebas para garantizar la calidad del código.
+1. **Bot Registration**: Register automated trading bots with Stellar wallet addresses
+2. **Asset Swapping**: Trade assets using Stellar's decentralized exchange
+3. **Escrow Transactions**: Secure payments with arbiter support
+4. **Time-Locked Orders**: Schedule transactions for future execution
+5. **Cross-Chain Swaps**: Bridge assets between blockchains (via LI.FI)
 
-### **Objetivo Final**
-Permitir la interacción eficiente entre agentes inteligentes simulada a través de APIs y flujos gráficos, logrando un manejo completo de pagos y servicios con Stellar.
+## 🤝 Contributing
+
+We welcome contributions! Please:
+- Create issues for bugs or feature requests
+- Use feature branches for new functionality
+- Include tests for all new code
+- Follow existing code style and conventions
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) for details
