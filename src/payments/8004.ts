@@ -14,7 +14,13 @@ interface PaymentRecord {
   timestamp: number;
 }
 
-// In-memory payment tracking (should be replaced with persistent storage in production)
+// In-memory payment tracking
+// 🔴 WARNING: This will lose all data on Worker restart!
+// TODO: Replace with persistent storage before production:
+// - Cloudflare Durable Objects (recommended)
+// - Cloudflare KV storage
+// - External database
+// See SECURITY.md for migration guide
 const paymentRecords = new Map<string, PaymentRecord>();
 
 /**

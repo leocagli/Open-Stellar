@@ -256,5 +256,12 @@ export function listEscrows(publicKey: string): EscrowContract[] {
   return contracts;
 }
 
-// In-memory storage (should be replaced with persistent storage in production)
+// In-memory escrow storage
+// 🔴 WARNING: This will lose all data on Worker restart!
+// 🔴 CRITICAL: Escrow contracts hold real funds - losing state means losing money!
+// TODO: Replace with persistent storage before production:
+// - Cloudflare Durable Objects (STRONGLY RECOMMENDED for escrow)
+// - External database with ACID transactions
+// - Never use in-memory storage for financial contracts in production!
+// See SECURITY.md for migration guide to Durable Objects
 const escrowContracts = new Map<string, EscrowContract>();

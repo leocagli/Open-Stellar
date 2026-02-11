@@ -7,6 +7,9 @@
 import * as StellarSdk from '@stellar/stellar-sdk';
 
 // Use testnet by default, can be configured via environment
+// WARNING: process.env doesn't work in Cloudflare Workers
+// This is a fallback for local development only
+// In production, pass network config through function parameters
 const STELLAR_NETWORK = process.env.STELLAR_NETWORK || 'testnet';
 const STELLAR_HORIZON_URL = 
   STELLAR_NETWORK === 'mainnet' 

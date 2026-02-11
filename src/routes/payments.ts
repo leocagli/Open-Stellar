@@ -262,14 +262,25 @@ payments.post('/verify', async (c) => {
  * POST /payments/keypair
  * 
  * Generate a new Stellar keypair (for testing)
+ * 
+ * ⚠️ SECURITY WARNING: This endpoint exposes secret keys in responses!
+ * - ONLY enabled in DEV_MODE
+ * - NEVER use in production
+ * - For testing and development ONLY
  */
 payments.post('/keypair', async (c) => {
+  // Only allow in dev mode
+  if (c.env.DEV_MODE !== 'true') {
+    return c.json({ error: 'This endpoint is only available in DEV_MODE' }, 403);
+  }
+  
   try {
     const keypair = createKeypair();
     return c.json({
       publicKey: keypair.publicKey(),
       secretKey: keypair.secret(),
       warning: 'This is for testing only. Never expose secret keys in production!',
+      network: 'testnet',
     });
   } catch (error) {
     return c.json({ error: String(error) }, 500);
