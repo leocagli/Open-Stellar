@@ -304,8 +304,10 @@ payments.post('/escrow/create', async (c) => {
   }
 });
 
-// Note: Release and refund endpoints would require escrow state storage
-// This is a simplified implementation. In production, use R2 or Durable Objects
+// Note: For complete escrow workflow, use the 8004 escrow functions:
+// - complete8004EscrowPayment() to release funds
+// - cancel8004EscrowPayment() to refund
+// These require escrow state to be persisted (e.g., in R2 or Durable Objects)
 
 // =============================================================================
 // Utility Routes

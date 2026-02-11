@@ -2,8 +2,6 @@
  * Payment system types for Stellar integration and escrow management
  */
 
-import type { Asset, Transaction } from '@stellar/stellar-sdk';
-
 /**
  * Stellar network configuration
  */

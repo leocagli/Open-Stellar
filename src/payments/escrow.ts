@@ -169,7 +169,8 @@ export async function releaseEscrow(
   }
 
   // Build payment transaction to payee
-  const balance = await getAccountBalance(escrowAccount.publicKey, escrow.amount.asset.code, network);
+  const assetCode = escrow.amount.asset.code === 'XLM' ? 'native' : escrow.amount.asset.code;
+  const balance = await getAccountBalance(escrowAccount.publicKey, assetCode, network);
   
   const transaction = await buildPaymentTransaction(
     escrowAccount,
@@ -249,7 +250,8 @@ export async function refundEscrow(
   }
 
   // Build refund transaction
-  const balance = await getAccountBalance(escrowAccount.publicKey, escrow.amount.asset.code, network);
+  const assetCode = escrow.amount.asset.code === 'XLM' ? 'native' : escrow.amount.asset.code;
+  const balance = await getAccountBalance(escrowAccount.publicKey, assetCode, network);
   
   const transaction = await buildPaymentTransaction(
     escrowAccount,
