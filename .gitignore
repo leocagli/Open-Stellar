@@ -9,6 +9,10 @@ build-info.json
 .wrangler/
 .dev.vars
 
+# Rust/Cargo
+target/
+Cargo.lock
+
 # Logs
 *.log
 npm-debug.log*
@@ -36,3 +40,12 @@ Thumbs.db
 
 # Docker build artifacts
 *.tar
+
+# Temporary files
+*.tmp
+.tmp/
+/tmp/
+
+# Archives
+*.zip
+*.tar.gz
