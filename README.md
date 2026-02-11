@@ -13,6 +13,7 @@
 - 💾 **R2 Storage** - Optional persistent storage for chat history
 - 🎯 **Admin UI** - Built-in React dashboard for device management
 - 🔧 **Debug Routes** - Development tools and API testing endpoints
+- 💰 **Payment System** - Stellar blockchain integration with x402, 8004, and Trusstles escrow
 
 ## 🚀 Quick Start
 
@@ -78,6 +79,8 @@ The worker proxies HTTP and WebSocket traffic to a Moltbot instance running in a
 - [`AGENTS.md`](AGENTS.md) - Development guide for AI agents
 - [`README.md`](README.md) - This file
 - [`CREATE_OPEN_STELLAR.md`](CREATE_OPEN_STELLAR.md) - Repository setup guide
+- [`PAYMENTS.md`](PAYMENTS.md) - Payment system documentation (English)
+- [`GUIA_IMPLEMENTACION.md`](GUIA_IMPLEMENTACION.md) - Guía de implementación de pagos (Español)
 
 ## 🔧 Development
 
@@ -137,6 +140,46 @@ Your worker will be available at `https://your-worker.your-subdomain.workers.dev
 | `R2_ACCESS_KEY_ID` | R2 storage access key | - |
 | `R2_SECRET_ACCESS_KEY` | R2 storage secret | - |
 | `CF_ACCOUNT_ID` | Cloudflare account ID | - |
+| `STELLAR_NETWORK` | Stellar network (testnet/mainnet) | `testnet` |
+| `STELLAR_PAYEE_PUBLIC_KEY` | Your Stellar address for payments | - |
+
+## 💰 Payment System
+
+Open-Stellar includes a comprehensive payment system built on Stellar blockchain:
+
+### Features
+
+- **x402 Handler** - HTTP 402 Payment Required for paid resources
+- **8004 Processor** - Custom payment processing with error codes
+- **Trusstles Escrow** - Trustless escrow for secure transactions
+- **Stellar Integration** - Full Stellar SDK integration
+
+### Quick Example
+
+```typescript
+// Protect a route with payment requirement
+app.get(
+  '/premium-content',
+  requirePayment(
+    { amount: '10', asset: { code: 'XLM' } },
+    'YOUR_STELLAR_ADDRESS'
+  ),
+  (c) => c.json({ content: 'Premium content here' })
+);
+```
+
+### API Endpoints
+
+- `POST /api/payments/verify` - Verify payment
+- `POST /api/payments/process` - Process direct payment
+- `POST /api/payments/escrow/create` - Create escrow
+- `GET /api/payments/balance/:publicKey` - Check balance
+- `POST /api/payments/generate-keypair` - Generate Stellar keypair
+
+### Documentation
+
+- 📖 [Payment System Guide (English)](PAYMENTS.md)
+- 📖 [Guía de Implementación (Español)](GUIA_IMPLEMENTACION.md)
 
 ## 🤝 Contributing
 
