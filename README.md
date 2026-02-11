@@ -15,6 +15,9 @@ Open-Stellar es un repositorio enfocado en la integración de agentes inteligent
 
 - 🚀 **Cloudflare Workers** - Runs at the edge, globally distributed
 - 🤖 **Groq Integration** - Free LLM API with **Llama 3.3 70B** (14,400 requests/day)
+- ⭐ **Stellar Integration** - Sign-In With Agent (SIWA) authentication adapted from ERC-8004
+- 🔐 **Agent Identity** - Prove ownership using Stellar's Ed25519 signatures
+- 🏦 **Trustless Escrow** - Multi-signature accounts using Stellar's native protocol
 - 🔒 **Secure** - Token-based authentication with DEV_MODE support
 - 🌐 **WebSocket Support** - Real-time chat interface with message streaming
 - 💾 **R2 Storage** - Optional persistent storage for chat history
@@ -63,6 +66,25 @@ npm run start
 
 Visit `http://localhost:8789` in your browser.
 
+### 5. Test Stellar Integration (Optional)
+
+```bash
+# Test Stellar endpoints
+curl http://localhost:8789/api/stellar/keypair -X POST
+
+# See STELLAR_INTEGRATION.md for full API documentation
+```
+
+## 🌟 Stellar Integration
+
+Open-Stellar implements **Sign-In With Agent (SIWA)** adapted from ERC-8004 for Stellar:
+
+- ✅ **Agent Authentication** - Prove identity with Ed25519 signatures
+- ✅ **Trustless Escrow** - Multi-signature accounts for secure transactions
+- ✅ **No Smart Contracts** - Uses Stellar's native protocol features
+
+See [`STELLAR_INTEGRATION.md`](STELLAR_INTEGRATION.md) for detailed documentation.
+
 ## 📚 Available Models
 
 Open Stellar automatically configures these Groq models:
@@ -83,6 +105,7 @@ The worker proxies HTTP and WebSocket traffic to a Moltbot instance running in a
 ## 📖 Documentation
 
 - [`AGENTS.md`](AGENTS.md) - Development guide for AI agents
+- [`STELLAR_INTEGRATION.md`](STELLAR_INTEGRATION.md) - **Stellar blockchain integration guide**
 - [`README.md`](README.md) - This file
 - [`CREATE_OPEN_STELLAR.md`](CREATE_OPEN_STELLAR.md) - Repository setup guide
 
@@ -105,6 +128,11 @@ npm run typecheck  # TypeScript type checking
 
 ### **Estructura del Proyecto**
 #### Carpetas Principales:
+- `/src/stellar`: **Integración con blockchain Stellar** (identidad, autenticación, escrow)
+  - `/stellar/identity`: Gestión de wallets y firma de mensajes
+  - `/stellar/auth`: Autenticación SIWA (Sign-In With Agent)
+  - `/stellar/escrow`: Mecanismo de escrow trustless con multi-firma
+- `/src/routes`: Endpoints API para Stellar y otros servicios
 - `/api-integrations`: Wrappers y configuración para interactuar con APIs externas (Groq, OpenRouter, ChatGPT Pro).
 - `/agents`: Lógica de los agentes inteligentes y sus roles.
 - `/payments`: Implementación de pagos con Stellar Trustless y manejo de escrow.
