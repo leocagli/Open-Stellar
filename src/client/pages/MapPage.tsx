@@ -15,6 +15,7 @@ export default function MapPage() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [buildings] = useState<Building[]>(sampleBuildings)
+  const [agentTimeouts, setAgentTimeouts] = useState<Map<string, NodeJS.Timeout>>(new Map())
 
   // Create a new agent
   const handleCreateAgent = useCallback((name: string) => {
@@ -121,8 +122,14 @@ export default function MapPage() {
         
         // Simulate task completion after working for a while
         if (agent.status === 'working' && agent.assignedTask) {
+          // Clear any existing timeout for this agent
+          const existingTimeout = agentTimeouts.get(agent.id)
+          if (existingTimeout) {
+            clearTimeout(existingTimeout)
+          }
+          
           // Complete task after 5 seconds
-          setTimeout(() => {
+          const timeoutId = setTimeout(() => {
             setTasks(prev => prev.map(t =>
               t.id === agent.assignedTask?.id
                 ? { ...t, status: 'completed' }
@@ -138,15 +145,28 @@ export default function MapPage() {
                   }
                 : a
             ))
+            // Remove timeout from map after it completes
+            setAgentTimeouts(prev => {
+              const next = new Map(prev)
+              next.delete(agent.id)
+              return next
+            })
           }, 5000)
+          
+          // Store timeout ID
+          setAgentTimeouts(prev => new Map(prev).set(agent.id, timeoutId))
         }
         
         return agent
       }))
     }, 100) // Update every 100ms
 
-    return () => clearInterval(interval)
-  }, [])
+    return () => {
+      clearInterval(interval)
+      // Clear all timeouts when component unmounts
+      agentTimeouts.forEach(timeoutId => clearTimeout(timeoutId))
+    }
+  }, [agentTimeouts])
 
   return (
     <div className="map-page">
