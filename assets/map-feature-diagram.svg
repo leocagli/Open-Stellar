@@ -1,0 +1,97 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font: bold 24px sans-serif; fill: #1a1a2e; }
+      .subtitle { font: 16px sans-serif; fill: #666; }
+      .box { fill: #f0f0f0; stroke: #333; stroke-width: 2; }
+      .building { fill: #4A90E2; stroke: white; stroke-width: 2; }
+      .agent-idle { fill: #10B981; stroke: white; stroke-width: 2; }
+      .agent-moving { fill: #F59E0B; stroke: white; stroke-width: 2; }
+      .agent-working { fill: #EF4444; stroke: white; stroke-width: 2; }
+      .label { font: 12px sans-serif; fill: #333; }
+      .panel { fill: #1a1a2e; stroke: #e94560; stroke-width: 2; }
+      .panel-text { font: 14px sans-serif; fill: white; }
+    </style>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" class="title">Interactive Agent Map Feature</text>
+  <text x="400" y="55" text-anchor="middle" class="subtitle">Real-time agent simulation on interactive map</text>
+  
+  <!-- Map Area -->
+  <rect x="20" y="80" width="550" height="480" class="box"/>
+  <text x="295" y="100" text-anchor="middle" class="label">Map View (Leaflet)</text>
+  
+  <!-- Buildings -->
+  <circle cx="100" cy="150" r="20" class="building"/>
+  <text x="100" y="185" text-anchor="middle" class="label">Research Lab</text>
+  
+  <circle cx="250" cy="200" r="20" class="building"/>
+  <text x="250" y="235" text-anchor="middle" class="label">Command Center</text>
+  
+  <circle cx="400" cy="180" r="20" class="building"/>
+  <text x="400" y="215" text-anchor="middle" class="label">Manufacturing</text>
+  
+  <circle cx="150" cy="320" r="20" class="building"/>
+  <text x="150" y="355" text-anchor="middle" class="label">Supply Depot</text>
+  
+  <circle cx="350" cy="350" r="20" class="building"/>
+  <text x="350" y="385" text-anchor="middle" class="label">Energy Station</text>
+  
+  <circle cx="480" cy="280" r="20" class="building"/>
+  <text x="480" y="315" text-anchor="middle" class="label">Medical Bay</text>
+  
+  <!-- Agents -->
+  <circle cx="200" cy="420" r="15" class="agent-idle"/>
+  <text x="200" y="450" text-anchor="middle" class="label">Agent 1 (Idle)</text>
+  
+  <circle cx="320" cy="270" r="15" class="agent-moving"/>
+  <text x="320" y="300" text-anchor="middle" class="label">Agent 2 (Moving)</text>
+  <path d="M 320 270 L 350 350" stroke="#F59E0B" stroke-width="2" stroke-dasharray="5,5" fill="none"/>
+  
+  <circle cx="480" cy="280" r="15" class="agent-working"/>
+  <text x="480" y="335" text-anchor="middle" class="label">Agent 3 (Working)</text>
+  
+  <!-- Control Panel -->
+  <rect x="590" y="80" width="190" height="480" class="panel"/>
+  <text x="685" y="110" text-anchor="middle" class="panel-text">Control Panel</text>
+  
+  <!-- Panel Sections -->
+  <line x1="600" y1="130" x2="770" y2="130" stroke="#e94560" stroke-width="1"/>
+  <text x="685" y="155" text-anchor="middle" class="panel-text">Create Agent</text>
+  <rect x="610" y="165" width="150" height="30" fill="#2a2a3e" rx="4"/>
+  <text x="685" y="186" text-anchor="middle" style="font: 12px sans-serif; fill: #aaa;">[Agent Name]</text>
+  <rect x="610" y="200" width="150" height="25" fill="#e94560" rx="4"/>
+  <text x="685" y="217" text-anchor="middle" style="font: 12px sans-serif; fill: white;">Create</text>
+  
+  <line x1="600" y1="240" x2="770" y2="240" stroke="#e94560" stroke-width="1"/>
+  <text x="685" y="265" text-anchor="middle" class="panel-text">Assign Task</text>
+  <rect x="610" y="275" width="150" height="25" fill="#2a2a3e" rx="4"/>
+  <text x="685" y="292" text-anchor="middle" style="font: 11px sans-serif; fill: #aaa;">Select Agent</text>
+  <rect x="610" y="305" width="150" height="25" fill="#2a2a3e" rx="4"/>
+  <text x="685" y="322" text-anchor="middle" style="font: 11px sans-serif; fill: #aaa;">Select Task</text>
+  <rect x="610" y="335" width="150" height="25" fill="#10B981" rx="4"/>
+  <text x="685" y="352" text-anchor="middle" style="font: 12px sans-serif; fill: white;">Assign</text>
+  
+  <line x1="600" y1="375" x2="770" y2="375" stroke="#e94560" stroke-width="1"/>
+  <text x="685" y="400" text-anchor="middle" class="panel-text">Status Overview</text>
+  <text x="620" y="425" style="font: 11px sans-serif; fill: #aaa;">Total Agents: 3</text>
+  <text x="620" y="445" style="font: 11px sans-serif; fill: #10B981;">Idle: 1</text>
+  <text x="620" y="465" style="font: 11px sans-serif; fill: #F59E0B;">Moving: 1</text>
+  <text x="620" y="485" style="font: 11px sans-serif; fill: #EF4444;">Working: 1</text>
+  
+  <line x1="600" y1="500" x2="770" y2="500" stroke="#e94560" stroke-width="1"/>
+  <rect x="610" y="510" width="150" height="30" fill="#EF4444" rx="4"/>
+  <text x="685" y="531" text-anchor="middle" style="font: 12px sans-serif; fill: white;">Clear All Tasks</text>
+  
+  <!-- Legend -->
+  <text x="40" y="535" class="label" font-weight="bold">Legend:</text>
+  <circle cx="80" cy="545" r="8" class="building"/>
+  <text x="95" y="550" class="label">Building</text>
+  <circle cx="180" cy="545" r="8" class="agent-idle"/>
+  <text x="195" y="550" class="label">Agent (Idle)</text>
+  <circle cx="290" cy="545" r="8" class="agent-moving"/>
+  <text x="305" y="550" class="label">Agent (Moving)</text>
+  <circle cx="420" cy="545" r="8" class="agent-working"/>
+  <text x="435" y="550" class="label">Agent (Working)</text>
+</svg>

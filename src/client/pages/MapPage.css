@@ -1,0 +1,244 @@
+/* Map Page Layout */
+.map-page {
+  display: flex;
+  height: calc(100vh - 80px);
+  gap: 0;
+}
+
+.map-container-wrapper {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+/* Task Panel */
+.task-panel {
+  width: 320px;
+  background: var(--card-bg);
+  border-left: 1px solid var(--border-color);
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.task-panel h2 {
+  margin: 0 0 1.5rem 0;
+  color: var(--text-color);
+  font-size: 1.5rem;
+}
+
+.panel-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.panel-section:last-child {
+  border-bottom: none;
+}
+
+.panel-section h3 {
+  margin: 0 0 1rem 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Create Agent Form */
+.create-agent-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.agent-name-input {
+  padding: 0.75rem;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.agent-name-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+/* Assign Task Form */
+.assign-task-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.agent-select,
+.task-select {
+  padding: 0.75rem;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.agent-select:focus,
+.task-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+/* Status Overview */
+.status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.status-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.status-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.status-value.idle {
+  color: #10B981;
+}
+
+.status-value.moving {
+  color: #F59E0B;
+}
+
+.status-value.working {
+  color: #EF4444;
+}
+
+/* Marker Popups */
+.building-popup,
+.agent-popup {
+  min-width: 200px;
+}
+
+.building-popup h3,
+.agent-popup h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  color: #1a1a2e;
+}
+
+.building-popup p,
+.agent-popup p {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.tasks-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.tasks-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.tasks-section ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tasks-section li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tasks-section li:last-child {
+  border-bottom: none;
+}
+
+.assign-task-btn {
+  padding: 0.25rem 0.75rem;
+  background: #4A90E2;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.assign-task-btn:hover {
+  background: #357ABD;
+}
+
+.agent-popup .status {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.agent-popup .status-idle {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.agent-popup .status-moving {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.agent-popup .status-working {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.agent-popup .task-info {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e0e0e0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .map-page {
+    flex-direction: column;
+  }
+
+  .task-panel {
+    width: 100%;
+    max-height: 300px;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+  }
+}
+
+/* Hint text */
+.hint {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-style: italic;
+  margin: 0;
+}

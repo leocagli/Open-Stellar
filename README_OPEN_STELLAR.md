@@ -12,6 +12,7 @@
 - 🌐 **WebSocket Support** - Real-time chat interface with message streaming
 - 💾 **R2 Storage** - Optional persistent storage for chat history
 - 🎯 **Admin UI** - Built-in React dashboard for device management
+- 🗺️ **Interactive Agent Map** - NEW! Visualize and control AI agents on an interactive map
 - 🔧 **Debug Routes** - Development tools and API testing endpoints
 
 ## 🚀 Quick Start
@@ -76,6 +77,7 @@ The worker proxies HTTP and WebSocket traffic to a Moltbot instance running in a
 ## 📖 Documentation
 
 - [`AGENTS.md`](AGENTS.md) - Development guide for AI agents
+- [`MAP_FEATURE.md`](MAP_FEATURE.md) - Interactive Agent Map documentation
 - [`README.md`](README.md) - This file
 - [`CREATE_OPEN_STELLAR.md`](CREATE_OPEN_STELLAR.md) - Repository setup guide
 
