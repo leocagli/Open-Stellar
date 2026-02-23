@@ -1,5 +1,4 @@
 export type MoltbotStatus = "active" | "idle" | "working" | "error" | "offline"
-
 export type DistrictType = "data-center" | "comm-hub" | "processing" | "defense" | "research"
 
 export interface MoltbotTask {
@@ -24,7 +23,6 @@ export interface MoltbotAgent {
   memory: number
   model: string
   avatar: string
-  position: { x: number; y: number }
   lastActivity: string
 }
 
@@ -35,7 +33,6 @@ export interface District {
   agentCount: number
   capacity: number
   load: number
-  color: string
   icon: string
 }
 

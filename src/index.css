@@ -41,36 +41,25 @@
     border-color: hsl(var(--border));
   }
   body {
+    margin: 0;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-family: "Inter", system-ui, sans-serif;
   }
 }
 
 @layer utilities {
   .grid-city {
-    background-image: 
+    background-image:
       linear-gradient(rgba(0, 210, 190, 0.03) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 210, 190, 0.03) 1px, transparent 1px);
     background-size: 40px 40px;
   }
-
-  .glow-teal {
-    box-shadow: 0 0 12px rgba(0, 210, 190, 0.3), 0 0 40px rgba(0, 210, 190, 0.1);
-  }
-
   .glow-teal-sm {
     box-shadow: 0 0 6px rgba(0, 210, 190, 0.2);
   }
-
-  .text-glow {
-    text-shadow: 0 0 8px rgba(0, 210, 190, 0.5);
-  }
-
   .scanline {
-    background: linear-gradient(
-      transparent 50%,
-      rgba(0, 210, 190, 0.015) 50%
-    );
+    background: linear-gradient(transparent 50%, rgba(0, 210, 190, 0.015) 50%);
     background-size: 100% 4px;
     pointer-events: none;
   }
