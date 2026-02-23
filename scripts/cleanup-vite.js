@@ -1,5 +1,5 @@
-import { rmSync, existsSync } from 'fs';
-import { join } from 'path';
+const { rmSync, existsSync } = require('fs');
+const { join } = require('path');
 
 const baseDir = '/vercel/share/v0-next-shadcn/node_modules';
 
@@ -22,12 +22,12 @@ for (const target of targets) {
   if (existsSync(fullPath)) {
     try {
       rmSync(fullPath, { recursive: true, force: true });
-      console.log(`Removed: ${fullPath}`);
+      console.log('Removed: ' + fullPath);
     } catch (e) {
-      console.log(`Failed to remove ${fullPath}: ${e.message}`);
+      console.log('Failed to remove ' + fullPath + ': ' + e.message);
     }
   } else {
-    console.log(`Not found: ${fullPath}`);
+    console.log('Not found: ' + fullPath);
   }
 }
 
