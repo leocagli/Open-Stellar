@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 6%;
+    --foreground: 210 20% 92%;
+    --card: 220 18% 10%;
+    --card-foreground: 210 20% 92%;
+    --primary: 174 72% 50%;
+    --primary-foreground: 220 20% 6%;
+    --secondary: 220 16% 16%;
+    --secondary-foreground: 210 20% 80%;
+    --muted: 220 14% 14%;
+    --muted-foreground: 215 15% 55%;
+    --accent: 174 72% 50%;
+    --accent-foreground: 220 20% 6%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 14% 18%;
+    --ring: 174 72% 50%;
+    --radius: 0.5rem;
+
+    --district-data: 174 72% 50%;
+    --district-comm: 265 72% 60%;
+    --district-process: 35 92% 55%;
+    --district-defense: 0 72% 55%;
+    --district-research: 142 72% 50%;
+
+    --status-active: 142 72% 50%;
+    --status-idle: 215 15% 55%;
+    --status-working: 35 92% 55%;
+    --status-error: 0 72% 55%;
+    --status-offline: 220 14% 30%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  .grid-city {
+    background-image: 
+      linear-gradient(rgba(0, 210, 190, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 210, 190, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .glow-teal {
+    box-shadow: 0 0 12px rgba(0, 210, 190, 0.3), 0 0 40px rgba(0, 210, 190, 0.1);
+  }
+
+  .glow-teal-sm {
+    box-shadow: 0 0 6px rgba(0, 210, 190, 0.2);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 8px rgba(0, 210, 190, 0.5);
+  }
+
+  .scanline {
+    background: linear-gradient(
+      transparent 50%,
+      rgba(0, 210, 190, 0.015) 50%
+    );
+    background-size: 100% 4px;
+    pointer-events: none;
+  }
+}
