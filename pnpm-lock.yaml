@@ -8,45 +8,48 @@ importers:
 
   .:
     dependencies:
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
       clsx:
-        specifier: 2.1.1
+        specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: 0.468.0
+        specifier: ^0.468.0
         version: 0.468.0(react@19.0.0)
       next:
-        specifier: 15.3.1
+        specifier: ^15.3.0
         version: 15.3.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       react:
-        specifier: 19.0.0
+        specifier: ^19.0.0
         version: 19.0.0
       react-dom:
-        specifier: 19.0.0
+        specifier: ^19.0.0
         version: 19.0.0(react@19.0.0)
       tailwind-merge:
-        specifier: 2.6.0
+        specifier: ^2.6.0
         version: 2.6.0
     devDependencies:
       '@types/node':
-        specifier: 22.10.0
+        specifier: ^22.0.0
         version: 22.10.0
       '@types/react':
-        specifier: 19.0.0
+        specifier: ^19.0.0
         version: 19.0.0
       '@types/react-dom':
-        specifier: 19.0.0
+        specifier: ^19.0.0
         version: 19.0.0
       autoprefixer:
-        specifier: 10.4.20
+        specifier: ^10.4.0
         version: 10.4.20(postcss@8.4.49)
       postcss:
-        specifier: 8.4.49
+        specifier: ^8.4.0
         version: 8.4.49
       tailwindcss:
-        specifier: 3.4.17
+        specifier: ^3.4.0
         version: 3.4.17
       typescript:
-        specifier: 5.7.2
+        specifier: ^5.7.0
         version: 5.7.2
 
 packages:
@@ -355,6 +358,9 @@ packages:
   chokidar@3.6.0:
     resolution: {integrity: sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==}
     engines: {node: '>= 8.10.0'}
+
+  class-variance-authority@0.7.1:
+    resolution: {integrity: sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg==}
 
   client-only@0.0.1:
     resolution: {integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==}
@@ -949,6 +955,10 @@ snapshots:
       readdirp: 3.6.0
     optionalDependencies:
       fsevents: 2.3.3
+
+  class-variance-authority@0.7.1:
+    dependencies:
+      clsx: 2.1.1
 
   client-only@0.0.1: {}
 
