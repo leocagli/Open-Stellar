@@ -17,6 +17,7 @@ export default function CityPage() {
   const [tick, setTick] = useState(0)
   const [paused, setPaused] = useState(false)
   const [ready, setReady] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const logId = useRef(0)
 
   useEffect(() => {
@@ -132,51 +133,93 @@ export default function CityPage() {
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", background: "#0a0e17" }}>
-      {/* City canvas area */}
-      <div style={{ flex: 1, position: "relative" }}>
-        <PixelCity
-          agents={agents}
-          districts={DISTRICTS}
-          selectedAgentId={selectedAgentId}
-          onSelectAgent={setSelectedAgentId}
-          tick={tick}
-        />
+    <div style={{ position: "relative", height: "100vh", width: "100vw", overflow: "hidden", background: "#0a0e17" }}>
+      {/* City canvas -- full viewport */}
+      <PixelCity
+        agents={agents}
+        districts={DISTRICTS}
+        selectedAgentId={selectedAgentId}
+        onSelectAgent={setSelectedAgentId}
+        tick={tick}
+      />
 
-        {/* Controls overlay */}
-        <div style={{
-          position: "absolute",
-          bottom: 12,
-          left: 12,
-          display: "flex",
-          gap: 8,
-        }}>
-          <button
-            onClick={() => setPaused(!paused)}
-            style={{
-              padding: "6px 14px",
-              background: paused ? "#22d3ee" : "#1e293b",
-              color: paused ? "#000" : "#e2e8f0",
-              border: "1px solid #2a3a52",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontFamily: "monospace",
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            {paused ? "RESUME" : "PAUSE"}
-          </button>
-        </div>
+      {/* Bottom-left controls */}
+      <div style={{
+        position: "absolute",
+        bottom: 12,
+        left: 12,
+        display: "flex",
+        gap: 8,
+        zIndex: 20,
+      }}>
+        <button
+          onClick={() => setPaused(!paused)}
+          style={{
+            padding: "6px 14px",
+            background: paused ? "#22d3ee" : "rgba(17,24,39,0.85)",
+            color: paused ? "#000" : "#e2e8f0",
+            border: "1px solid #2a3a52",
+            borderRadius: 6,
+            cursor: "pointer",
+            fontFamily: "monospace",
+            fontSize: 12,
+            fontWeight: 600,
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          {paused ? "RESUME" : "PAUSE"}
+        </button>
       </div>
 
-      {/* Sidebar */}
-      <SidebarPanel
-        agents={agents}
-        selectedAgent={selectedAgent}
-        logs={logs}
-        onSelectAgent={setSelectedAgentId}
-      />
+      {/* Toggle sidebar button -- always visible */}
+      <button
+        onClick={() => setSidebarOpen(prev => !prev)}
+        aria-label={sidebarOpen ? "Close panel" : "Open panel"}
+        style={{
+          position: "absolute",
+          top: 12,
+          right: sidebarOpen ? 332 : 12,
+          zIndex: 30,
+          width: 36,
+          height: 36,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(17,24,39,0.9)",
+          border: "1px solid #2a3a52",
+          borderRadius: 8,
+          color: "#22d3ee",
+          cursor: "pointer",
+          fontFamily: "monospace",
+          fontSize: 16,
+          fontWeight: 700,
+          transition: "right 0.3s ease",
+          backdropFilter: "blur(6px)",
+        }}
+      >
+        {sidebarOpen ? "\u00BB" : "\u00AB"}
+      </button>
+
+      {/* Sliding sidebar drawer */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          height: "100%",
+          width: 320,
+          transform: sidebarOpen ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.3s ease",
+          zIndex: 25,
+        }}
+      >
+        <SidebarPanel
+          agents={agents}
+          selectedAgent={selectedAgent}
+          logs={logs}
+          onSelectAgent={setSelectedAgentId}
+        />
+      </div>
     </div>
   )
 }
