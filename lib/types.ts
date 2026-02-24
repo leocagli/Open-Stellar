@@ -20,6 +20,7 @@ export interface MoltbotAgent {
   targetY: number
   frame: number
   direction: "left" | "right"
+  spriteId: number
 }
 
 export interface District {

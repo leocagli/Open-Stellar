@@ -16,6 +16,8 @@ const NAMES = [
 
 const MODELS = ["claude-4-sonnet", "claude-4-opus", "claude-3.5-haiku", "gpt-5-mini"]
 
+export const SPRITE_COUNT = 7 // total unique robot sprites
+
 const TASKS: Record<DistrictId, string[]> = {
   "data-center": ["Indexing datasets", "Running backup", "Syncing replicas", "Compressing logs"],
   "comm-hub": ["Routing messages", "Encrypting channel", "Relaying signals", "Handshake protocol"],
@@ -53,6 +55,7 @@ export function createAgents(): MoltbotAgent[] {
       targetY: py,
       frame: 0,
       direction: "right" as const,
+      spriteId: i % SPRITE_COUNT,
     }
   })
 }

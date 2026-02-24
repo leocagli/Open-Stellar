@@ -135,63 +135,113 @@ export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: n
   ctx.fillText(d.name.toUpperCase(), d.x + 12, d.y + 18)
 }
 
-// Cache for tinted sprites per color
+// Cache for processed sprites: key = src+color
 const tintCache = new Map<string, HTMLCanvasElement>()
 
-function getTintedSprite(sprite: HTMLImageElement, color: string): HTMLCanvasElement {
-  const key = color
+function getProcessedSprite(sprite: HTMLImageElement, color: string): HTMLCanvasElement {
+  const key = sprite.src + "|" + color
   if (tintCache.has(key)) return tintCache.get(key)!
 
-  // The source sprite has a solid brown background (#9c8479 approx).
-  // We crop to just the robot region to remove the background.
-  // Robot is roughly centered: about 35%-65% horizontal, 25%-75% vertical.
-  const srcX = Math.floor(sprite.width * 0.35)
-  const srcY = Math.floor(sprite.height * 0.2)
-  const srcW = Math.floor(sprite.width * 0.3)
-  const srcH = Math.floor(sprite.height * 0.6)
+  const sw = sprite.naturalWidth || sprite.width
+  const sh = sprite.naturalHeight || sprite.height
 
-  const size = 40 // render size
-  const canvas = document.createElement("canvas")
-  canvas.width = size
-  canvas.height = size
-  const c = canvas.getContext("2d")!
+  // Step 1: draw sprite at original size to sample the background color from corner pixels
+  const tmp = document.createElement("canvas")
+  tmp.width = sw
+  tmp.height = sh
+  const tc = tmp.getContext("2d")!
+  tc.drawImage(sprite, 0, 0)
 
-  // Draw the cropped robot region scaled to our size
-  c.drawImage(sprite, srcX, srcY, srcW, srcH, 0, 0, size, size)
-
-  // Remove brownish background: set pixels close to bg color to transparent
-  const imgData = c.getImageData(0, 0, size, size)
-  const d = imgData.data
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i], g = d[i + 1], b = d[i + 2]
-    // Background is brownish ~(156, 132, 121) -- remove pixels near that hue
-    const isBg = r > 100 && r < 200 && g > 80 && g < 170 && b > 70 && b < 160 &&
-                 Math.abs(r - g) < 50 && Math.abs(g - b) < 50 && r > g && g > b
-    if (isBg) {
-      d[i + 3] = 0 // make transparent
+  const fullData = tc.getImageData(0, 0, sw, sh)
+  const fd = fullData.data
+  // Sample background color from the four corners
+  const corners = [
+    { x: 0, y: 0 },
+    { x: sw - 1, y: 0 },
+    { x: 0, y: sh - 1 },
+    { x: sw - 1, y: sh - 1 },
+  ]
+  let bgR = 0, bgG = 0, bgB = 0, bgCount = 0
+  for (const c of corners) {
+    const idx = (c.y * sw + c.x) * 4
+    if (fd[idx + 3] > 200) { // only opaque corners
+      bgR += fd[idx]
+      bgG += fd[idx + 1]
+      bgB += fd[idx + 2]
+      bgCount++
     }
   }
-  c.putImageData(imgData, 0, 0)
+  if (bgCount > 0) {
+    bgR = Math.round(bgR / bgCount)
+    bgG = Math.round(bgG / bgCount)
+    bgB = Math.round(bgB / bgCount)
+  }
 
-  // Apply color tint using "multiply" compositing
-  c.globalCompositeOperation = "multiply"
-  c.fillStyle = color
-  c.fillRect(0, 0, size, size)
+  // Step 2: find bounding box of non-background pixels to auto-crop
+  let minX = sw, minY = sh, maxX = 0, maxY = 0
+  const tolerance = 40
+  for (let py = 0; py < sh; py++) {
+    for (let px = 0; px < sw; px++) {
+      const idx = (py * sw + px) * 4
+      const r = fd[idx], g = fd[idx + 1], b = fd[idx + 2], a = fd[idx + 3]
+      if (a < 50) continue
+      const dist = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB)
+      if (dist > tolerance) {
+        if (px < minX) minX = px
+        if (py < minY) minY = py
+        if (px > maxX) maxX = px
+        if (py > maxY) maxY = py
+      }
+    }
+  }
 
-  // Restore alpha from original to keep transparency
-  c.globalCompositeOperation = "destination-in"
-  // Redraw the alpha channel from the cleaned image
+  // Padding around the crop
+  const pad = 2
+  minX = Math.max(0, minX - pad)
+  minY = Math.max(0, minY - pad)
+  maxX = Math.min(sw - 1, maxX + pad)
+  maxY = Math.min(sh - 1, maxY + pad)
+  const cropW = maxX - minX + 1
+  const cropH = maxY - minY + 1
+
+  // Step 3: draw cropped sprite into output canvas, removing background
+  const size = 42
+  const out = document.createElement("canvas")
+  out.width = size
+  out.height = size
+  const oc = out.getContext("2d")!
+  oc.drawImage(sprite, minX, minY, cropW, cropH, 0, 0, size, size)
+
+  const imgData = oc.getImageData(0, 0, size, size)
+  const d = imgData.data
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2], a = d[i + 3]
+    if (a < 50) { d[i + 3] = 0; continue }
+    const dist = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB)
+    if (dist < tolerance) {
+      d[i + 3] = 0
+    }
+  }
+  oc.putImageData(imgData, 0, 0)
+
+  // Step 4: apply color tint via multiply
+  oc.globalCompositeOperation = "multiply"
+  oc.fillStyle = color
+  oc.fillRect(0, 0, size, size)
+
+  // Restore alpha from cleaned image
+  oc.globalCompositeOperation = "destination-in"
   const alphaCanvas = document.createElement("canvas")
   alphaCanvas.width = size
   alphaCanvas.height = size
   const ac = alphaCanvas.getContext("2d")!
   ac.putImageData(imgData, 0, 0)
-  c.drawImage(alphaCanvas, 0, 0)
+  oc.drawImage(alphaCanvas, 0, 0)
 
-  c.globalCompositeOperation = "source-over"
+  oc.globalCompositeOperation = "source-over"
 
-  tintCache.set(key, canvas)
-  return canvas
+  tintCache.set(key, out)
+  return out
 }
 
 export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick: number, isSelected: boolean, sprite?: HTMLImageElement) {
@@ -229,7 +279,7 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
   const drawX = x - spriteSize / 2 + 8
 
   if (sprite) {
-    const tinted = getTintedSprite(sprite, c)
+    const tinted = getProcessedSprite(sprite, c)
     ctx.save()
     // Flip horizontally if facing left
     if (agent.direction === "left") {

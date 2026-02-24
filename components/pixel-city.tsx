@@ -11,8 +11,17 @@ const BG_IMAGES: Record<string, string> = {
   processing: "/bg-processing.jpg",
   defense: "/bg-defense.jpg",
   research: "/bg-research.jpg",
-  robot: "/robot-sprite.gif",
 }
+
+const SPRITE_PATHS = [
+  "/sprites/robot-tv.gif",      // 0 - TV headed bot
+  "/sprites/robot-tank.gif",    // 1 - Tank treaded bot
+  "/sprites/robot-blue.gif",    // 2 - Blue cartoon bot
+  "/sprites/robot-gold.gif",    // 3 - Gold pixel bot
+  "/sprites/robot-runner.gif",  // 4 - Running humanoid bot
+  "/sprites/robot-heavy.webp",  // 5 - Heavy dark bot
+  "/sprites/robot-green.gif",   // 6 - Green walking bot
+]
 
 interface PixelCityProps {
   agents: MoltbotAgent[]
@@ -26,12 +35,16 @@ export function PixelCity({ agents, districts, selectedAgentId, onSelectAgent, t
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [images, setImages] = useState<Record<string, HTMLImageElement>>({})
+  const [sprites, setSprites] = useState<HTMLImageElement[]>([])
 
-  // Preload all background images
+  // Preload all background images and robot sprites
   useEffect(() => {
     const loaded: Record<string, HTMLImageElement> = {}
+    const loadedSprites: (HTMLImageElement | null)[] = new Array(SPRITE_PATHS.length).fill(null)
     let count = 0
-    const total = Object.keys(BG_IMAGES).length
+    const totalBg = Object.keys(BG_IMAGES).length
+    const totalSprites = SPRITE_PATHS.length
+    const total = totalBg + totalSprites
 
     Object.entries(BG_IMAGES).forEach(([key, src]) => {
       const img = new Image()
@@ -41,11 +54,36 @@ export function PixelCity({ agents, districts, selectedAgentId, onSelectAgent, t
         count++
         if (count === total) {
           setImages({ ...loaded })
+          setSprites(loadedSprites.filter(Boolean) as HTMLImageElement[])
         }
       }
       img.onerror = () => {
         count++
-        if (count === total) setImages({ ...loaded })
+        if (count === total) {
+          setImages({ ...loaded })
+          setSprites(loadedSprites.filter(Boolean) as HTMLImageElement[])
+        }
+      }
+      img.src = src
+    })
+
+    SPRITE_PATHS.forEach((src, idx) => {
+      const img = new Image()
+      img.crossOrigin = "anonymous"
+      img.onload = () => {
+        loadedSprites[idx] = img
+        count++
+        if (count === total) {
+          setImages({ ...loaded })
+          setSprites(loadedSprites.filter(Boolean) as HTMLImageElement[])
+        }
+      }
+      img.onerror = () => {
+        count++
+        if (count === total) {
+          setImages({ ...loaded })
+          setSprites(loadedSprites.filter(Boolean) as HTMLImageElement[])
+        }
       }
       img.src = src
     })
@@ -104,7 +142,8 @@ export function PixelCity({ agents, districts, selectedAgentId, onSelectAgent, t
     // Draw agents sorted by Y for depth
     const sorted = [...agents].sort((a, b) => a.pixelY - b.pixelY)
     for (const agent of sorted) {
-      drawBot(ctx, agent, tick, agent.id === selectedAgentId, images.robot)
+      const agentSprite = sprites[agent.spriteId % sprites.length] || sprites[0]
+      drawBot(ctx, agent, tick, agent.id === selectedAgentId, agentSprite)
     }
 
     // Title
@@ -115,7 +154,7 @@ export function PixelCity({ agents, districts, selectedAgentId, onSelectAgent, t
     ctx.font = "10px monospace"
     ctx.fillStyle = "#64748b"
     ctx.fillText(`TICK ${tick}  |  ${agents.length} AGENTS DEPLOYED`, 40, 44)
-  }, [agents, districts, selectedAgentId, tick, images])
+  }, [agents, districts, selectedAgentId, tick, images, sprites])
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
