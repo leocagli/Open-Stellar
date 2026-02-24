@@ -19,7 +19,7 @@ function StatBox({ label, value, color }: { label: string; value: string | numbe
       borderLeft: `3px solid ${color}`,
     }}>
       <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color, fontFamily: "monospace" }}>{value}</div>
+      <div suppressHydrationWarning style={{ fontSize: 18, fontWeight: 700, color, fontFamily: "monospace" }}>{value}</div>
     </div>
   )
 }
@@ -61,7 +61,7 @@ function AgentRow({ agent, isSelected, onClick }: { agent: MoltbotAgent; isSelec
           {agent.currentTask || agent.status}
         </div>
       </div>
-      <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace" }}>{agent.cpu}%</div>
+      <div suppressHydrationWarning style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace" }}>{agent.cpu}%</div>
     </button>
   )
 }
@@ -141,7 +141,7 @@ export function SidebarPanel({ agents, selectedAgent, logs, onSelectAgent }: Sid
             </>
           )}
 
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
+          <div suppressHydrationWarning style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
             Completed: {selectedAgent.tasksCompleted} tasks
           </div>
         </div>
