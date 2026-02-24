@@ -135,94 +135,147 @@ export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: n
   ctx.fillText(d.name.toUpperCase(), d.x + 12, d.y + 18)
 }
 
-export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick: number, isSelected: boolean) {
+// Cache for tinted sprites per color
+const tintCache = new Map<string, HTMLCanvasElement>()
+
+function getTintedSprite(sprite: HTMLImageElement, color: string): HTMLCanvasElement {
+  const key = color
+  if (tintCache.has(key)) return tintCache.get(key)!
+
+  // The source sprite has a solid brown background (#9c8479 approx).
+  // We crop to just the robot region to remove the background.
+  // Robot is roughly centered: about 35%-65% horizontal, 25%-75% vertical.
+  const srcX = Math.floor(sprite.width * 0.35)
+  const srcY = Math.floor(sprite.height * 0.2)
+  const srcW = Math.floor(sprite.width * 0.3)
+  const srcH = Math.floor(sprite.height * 0.6)
+
+  const size = 40 // render size
+  const canvas = document.createElement("canvas")
+  canvas.width = size
+  canvas.height = size
+  const c = canvas.getContext("2d")!
+
+  // Draw the cropped robot region scaled to our size
+  c.drawImage(sprite, srcX, srcY, srcW, srcH, 0, 0, size, size)
+
+  // Remove brownish background: set pixels close to bg color to transparent
+  const imgData = c.getImageData(0, 0, size, size)
+  const d = imgData.data
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2]
+    // Background is brownish ~(156, 132, 121) -- remove pixels near that hue
+    const isBg = r > 100 && r < 200 && g > 80 && g < 170 && b > 70 && b < 160 &&
+                 Math.abs(r - g) < 50 && Math.abs(g - b) < 50 && r > g && g > b
+    if (isBg) {
+      d[i + 3] = 0 // make transparent
+    }
+  }
+  c.putImageData(imgData, 0, 0)
+
+  // Apply color tint using "multiply" compositing
+  c.globalCompositeOperation = "multiply"
+  c.fillStyle = color
+  c.fillRect(0, 0, size, size)
+
+  // Restore alpha from original to keep transparency
+  c.globalCompositeOperation = "destination-in"
+  // Redraw the alpha channel from the cleaned image
+  const alphaCanvas = document.createElement("canvas")
+  alphaCanvas.width = size
+  alphaCanvas.height = size
+  const ac = alphaCanvas.getContext("2d")!
+  ac.putImageData(imgData, 0, 0)
+  c.drawImage(alphaCanvas, 0, 0)
+
+  c.globalCompositeOperation = "source-over"
+
+  tintCache.set(key, canvas)
+  return canvas
+}
+
+export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick: number, isSelected: boolean, sprite?: HTMLImageElement) {
   const x = Math.round(agent.pixelX)
   const y = Math.round(agent.pixelY)
   const c = agent.color
-  const frame = Math.floor(tick / 8) % 4
   const bobY = agent.status === "working" ? Math.sin(tick * 0.15) * 2 : 0
+  const spriteSize = 36
+  const cx = x + 8 // center x of the bot
+  const cy = y + 10
 
   if (isSelected) {
     // Pulsing selection ring
-    const ringPulse = Math.sin(tick * 0.08) * 2 + 18
+    const ringPulse = Math.sin(tick * 0.08) * 2 + 22
     ctx.strokeStyle = "#ffffff"
     ctx.lineWidth = 1.5
     ctx.beginPath()
-    ctx.arc(x + 8, y + 10, ringPulse, 0, Math.PI * 2)
+    ctx.arc(cx, cy + 4, ringPulse, 0, Math.PI * 2)
     ctx.stroke()
-    // Glow
     ctx.strokeStyle = c + "66"
     ctx.lineWidth = 3
     ctx.beginPath()
-    ctx.arc(x + 8, y + 10, ringPulse + 2, 0, Math.PI * 2)
+    ctx.arc(cx, cy + 4, ringPulse + 2, 0, Math.PI * 2)
     ctx.stroke()
   }
 
   // Shadow
-  ctx.fillStyle = "rgba(0,0,0,0.35)"
+  ctx.fillStyle = "rgba(0,0,0,0.4)"
   ctx.beginPath()
-  ctx.ellipse(x + 8, y + 20, 7, 3, 0, 0, Math.PI * 2)
+  ctx.ellipse(cx, y + spriteSize - 2, 10, 4, 0, 0, Math.PI * 2)
   ctx.fill()
 
-  const by = y + bobY
+  // Draw the tinted sprite or fallback
+  const drawY = y + bobY - 4
+  const drawX = x - spriteSize / 2 + 8
 
-  // Body
-  drawRect(ctx, x + 2, by + 6, 12, 10, darken(c, 40))
-  drawRect(ctx, x + 4, by + 8, 8, 6, c)
+  if (sprite) {
+    const tinted = getTintedSprite(sprite, c)
+    ctx.save()
+    // Flip horizontally if facing left
+    if (agent.direction === "left") {
+      ctx.translate(drawX + spriteSize, 0)
+      ctx.scale(-1, 1)
+      ctx.drawImage(tinted, 0, drawY, spriteSize, spriteSize)
+    } else {
+      ctx.drawImage(tinted, drawX, drawY, spriteSize, spriteSize)
+    }
+    ctx.restore()
 
-  // Head
-  drawRect(ctx, x + 3, by, 10, 8, c)
-  // Eyes
-  drawRect(ctx, x + 5, by + 2, 2, 2, "#000")
-  drawRect(ctx, x + 9, by + 2, 2, 2, "#000")
+    // Dim the sprite for offline/error
+    if (agent.status === "offline") {
+      ctx.fillStyle = "rgba(0,0,0,0.6)"
+      ctx.fillRect(drawX, drawY, spriteSize, spriteSize)
+    }
+    if (agent.status === "error") {
+      // Red flash overlay
+      const flash = Math.sin(tick * 0.2) > 0
+      if (flash) {
+        ctx.fillStyle = "rgba(248,113,113,0.25)"
+        ctx.fillRect(drawX, drawY, spriteSize, spriteSize)
+      }
+    }
+  } else {
+    // Minimal fallback if sprite hasn't loaded
+    drawRect(ctx, x + 2, y + bobY, 12, 16, c)
+    drawRect(ctx, x + 4, y + bobY + 2, 3, 3, "#000")
+    drawRect(ctx, x + 9, y + bobY + 2, 3, 3, "#000")
+  }
 
+  // Signal waves for working bots (above sprite head)
   if (agent.status === "working") {
-    drawRect(ctx, x + 5, by + 2, 2, 2, "#fff")
-    drawRect(ctx, x + 9, by + 2, 2, 2, "#fff")
-  }
-  if (agent.status === "error") {
-    drawRect(ctx, x + 5, by + 2, 2, 2, "#f87171")
-    drawRect(ctx, x + 9, by + 2, 2, 2, "#f87171")
-  }
-
-  // Antenna
-  drawRect(ctx, x + 7, by - 4, 2, 4, c)
-  const antennaGlow = Math.sin(tick * 0.1) > 0
-  if (agent.status !== "offline") {
-    drawRect(ctx, x + 6, by - 6, 4, 2, antennaGlow ? lighten(c, 80) : c)
-    // Signal waves for working bots
-    if (agent.status === "working" && antennaGlow) {
-      ctx.strokeStyle = c + "44"
+    const antennaGlow = Math.sin(tick * 0.1) > 0
+    if (antennaGlow) {
+      ctx.strokeStyle = c + "55"
       ctx.lineWidth = 1
-      for (let r = 0; r < 2; r++) {
+      for (let r = 0; r < 3; r++) {
         ctx.beginPath()
-        ctx.arc(x + 8, by - 6, 4 + r * 4, -Math.PI * 0.8, -Math.PI * 0.2)
+        ctx.arc(cx, drawY, 6 + r * 5, -Math.PI * 0.8, -Math.PI * 0.2)
         ctx.stroke()
       }
     }
   }
 
-  // Legs with animation
-  const legFrame = agent.status === "working" || (Math.abs(agent.pixelX - agent.targetX) > 2) ? frame : 0
-  if (legFrame % 2 === 0) {
-    drawRect(ctx, x + 4, by + 16, 2, 4, darken(c, 30))
-    drawRect(ctx, x + 10, by + 14, 2, 4, darken(c, 30))
-  } else {
-    drawRect(ctx, x + 4, by + 14, 2, 4, darken(c, 30))
-    drawRect(ctx, x + 10, by + 16, 2, 4, darken(c, 30))
-  }
-
-  // Arms
-  if (agent.status === "working") {
-    const armSwing = Math.sin(tick * 0.2) * 2
-    drawRect(ctx, x, by + 8 + armSwing, 2, 6, darken(c, 20))
-    drawRect(ctx, x + 14, by + 8 - armSwing, 2, 6, darken(c, 20))
-  } else {
-    drawRect(ctx, x, by + 8, 2, 6, darken(c, 20))
-    drawRect(ctx, x + 14, by + 8, 2, 6, darken(c, 20))
-  }
-
-  // Status indicator dot
+  // Status indicator dot (top right of sprite)
   const statusColors: Record<string, string> = {
     active: "#34d399",
     working: "#fbbf24",
@@ -230,26 +283,29 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
     error: "#f87171",
     offline: "#1e293b",
   }
-  drawRect(ctx, x + 14, by, 4, 4, statusColors[agent.status] || "#64748b")
+  drawRect(ctx, drawX + spriteSize - 6, drawY + 2, 5, 5, statusColors[agent.status] || "#64748b")
+  // Status dot border
+  ctx.strokeStyle = "#0a0e17"
+  ctx.lineWidth = 0.5
+  ctx.strokeRect(drawX + spriteSize - 6, drawY + 2, 5, 5)
 
   // Name label
   ctx.font = "bold 8px monospace"
-  ctx.fillStyle = "#000000"
   ctx.textAlign = "center"
-  ctx.fillText(agent.name, x + 9, y + 29)
+  ctx.fillStyle = "#000000"
+  ctx.fillText(agent.name, cx + 1, y + spriteSize + 5)
   ctx.fillStyle = c
-  ctx.fillText(agent.name, x + 8, y + 28)
+  ctx.fillText(agent.name, cx, y + spriteSize + 4)
   ctx.textAlign = "left"
 
   // Task progress bar
   if (agent.status === "working" && agent.taskProgress > 0) {
-    const barW = 22
+    const barW = 28
     const barH = 3
-    const barX = x - 3
-    const barY = y + 32
+    const barX = cx - barW / 2
+    const barY = y + spriteSize + 8
     drawRect(ctx, barX, barY, barW, barH, "#0a0e17")
     drawRect(ctx, barX, barY, Math.floor(barW * agent.taskProgress / 100), barH, c)
-    // Bar border
     ctx.strokeStyle = c + "44"
     ctx.lineWidth = 0.5
     ctx.strokeRect(barX, barY, barW, barH)

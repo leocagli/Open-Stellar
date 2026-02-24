@@ -11,6 +11,7 @@ const BG_IMAGES: Record<string, string> = {
   processing: "/bg-processing.jpg",
   defense: "/bg-defense.jpg",
   research: "/bg-research.jpg",
+  robot: "/robot-sprite.gif",
 }
 
 interface PixelCityProps {
@@ -103,7 +104,7 @@ export function PixelCity({ agents, districts, selectedAgentId, onSelectAgent, t
     // Draw agents sorted by Y for depth
     const sorted = [...agents].sort((a, b) => a.pixelY - b.pixelY)
     for (const agent of sorted) {
-      drawBot(ctx, agent, tick, agent.id === selectedAgentId)
+      drawBot(ctx, agent, tick, agent.id === selectedAgentId, images.robot)
     }
 
     // Title
