@@ -11,12 +11,18 @@ function clamp(v: number, min: number, max: number) {
 }
 
 export default function CityPage() {
-  const [agents, setAgents] = useState<MoltbotAgent[]>(() => createAgents())
+  const [agents, setAgents] = useState<MoltbotAgent[]>([])
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [tick, setTick] = useState(0)
   const [paused, setPaused] = useState(false)
+  const [ready, setReady] = useState(false)
   const logId = useRef(0)
+
+  useEffect(() => {
+    setAgents(createAgents())
+    setReady(true)
+  }, [])
 
   const addLog = useCallback((agent: string, message: string, type: LogEntry["type"]) => {
     const now = new Date()
@@ -25,7 +31,7 @@ export default function CityPage() {
   }, [])
 
   useEffect(() => {
-    if (paused) return
+    if (paused || !ready) return
     const interval = setInterval(() => {
       setTick(t => t + 1)
 
@@ -88,7 +94,7 @@ export default function CityPage() {
     }, 60)
 
     return () => clearInterval(interval)
-  }, [paused])
+  }, [paused, ready])
 
   // Log events from state transitions
   useEffect(() => {
@@ -116,6 +122,14 @@ export default function CityPage() {
   }, [tick, agents, addLog])
 
   const selectedAgent = agents.find(a => a.id === selectedAgentId) ?? null
+
+  if (!ready) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", width: "100vw", background: "#0a0e17", color: "#22d3ee", fontFamily: "monospace", fontSize: 14 }}>
+        Initializing Moltbot City...
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", background: "#0a0e17" }}>
