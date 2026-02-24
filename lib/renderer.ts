@@ -138,33 +138,45 @@ export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: n
 // Cache for processed sprites: key = src+color
 const tintCache = new Map<string, HTMLCanvasElement>()
 
-function getProcessedSprite(sprite: HTMLImageElement, color: string): HTMLCanvasElement {
-  const key = sprite.src + "|" + color
+function getProcessedSprite(
+  sprite: HTMLImageElement,
+  color: string,
+  cropRegion?: [number, number, number, number]
+): HTMLCanvasElement {
+  const key = sprite.src + "|" + color + "|" + (cropRegion ? cropRegion.join(",") : "auto")
   if (tintCache.has(key)) return tintCache.get(key)!
 
   const sw = sprite.naturalWidth || sprite.width
   const sh = sprite.naturalHeight || sprite.height
 
-  // Step 1: draw sprite at original size to sample the background color from corner pixels
-  const tmp = document.createElement("canvas")
-  tmp.width = sw
-  tmp.height = sh
-  const tc = tmp.getContext("2d")!
-  tc.drawImage(sprite, 0, 0)
+  // If a manual crop region is specified (fraction 0-1), extract only that sub-region first
+  let srcX = 0, srcY = 0, srcW = sw, srcH = sh
+  if (cropRegion) {
+    srcX = Math.floor(cropRegion[0] * sw)
+    srcY = Math.floor(cropRegion[1] * sh)
+    srcW = Math.floor(cropRegion[2] * sw)
+    srcH = Math.floor(cropRegion[3] * sh)
+  }
 
-  const fullData = tc.getImageData(0, 0, sw, sh)
+  // Step 1: draw the (possibly cropped) region to sample its background color from corners
+  const tmp = document.createElement("canvas")
+  tmp.width = srcW
+  tmp.height = srcH
+  const tc = tmp.getContext("2d")!
+  tc.drawImage(sprite, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH)
+
+  const fullData = tc.getImageData(0, 0, srcW, srcH)
   const fd = fullData.data
-  // Sample background color from the four corners
   const corners = [
     { x: 0, y: 0 },
-    { x: sw - 1, y: 0 },
-    { x: 0, y: sh - 1 },
-    { x: sw - 1, y: sh - 1 },
+    { x: srcW - 1, y: 0 },
+    { x: 0, y: srcH - 1 },
+    { x: srcW - 1, y: srcH - 1 },
   ]
   let bgR = 0, bgG = 0, bgB = 0, bgCount = 0
   for (const c of corners) {
-    const idx = (c.y * sw + c.x) * 4
-    if (fd[idx + 3] > 200) { // only opaque corners
+    const idx = (c.y * srcW + c.x) * 4
+    if (fd[idx + 3] > 200) {
       bgR += fd[idx]
       bgG += fd[idx + 1]
       bgB += fd[idx + 2]
@@ -177,12 +189,12 @@ function getProcessedSprite(sprite: HTMLImageElement, color: string): HTMLCanvas
     bgB = Math.round(bgB / bgCount)
   }
 
-  // Step 2: find bounding box of non-background pixels to auto-crop
-  let minX = sw, minY = sh, maxX = 0, maxY = 0
+  // Step 2: find bounding box of non-background pixels within the sub-region
+  let minX = srcW, minY = srcH, maxX = 0, maxY = 0
   const tolerance = 40
-  for (let py = 0; py < sh; py++) {
-    for (let px = 0; px < sw; px++) {
-      const idx = (py * sw + px) * 4
+  for (let py = 0; py < srcH; py++) {
+    for (let px = 0; px < srcW; px++) {
+      const idx = (py * srcW + px) * 4
       const r = fd[idx], g = fd[idx + 1], b = fd[idx + 2], a = fd[idx + 3]
       if (a < 50) continue
       const dist = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB)
@@ -195,22 +207,22 @@ function getProcessedSprite(sprite: HTMLImageElement, color: string): HTMLCanvas
     }
   }
 
-  // Padding around the crop
   const pad = 2
   minX = Math.max(0, minX - pad)
   minY = Math.max(0, minY - pad)
-  maxX = Math.min(sw - 1, maxX + pad)
-  maxY = Math.min(sh - 1, maxY + pad)
+  maxX = Math.min(srcW - 1, maxX + pad)
+  maxY = Math.min(srcH - 1, maxY + pad)
   const cropW = maxX - minX + 1
   const cropH = maxY - minY + 1
 
-  // Step 3: draw cropped sprite into output canvas, removing background
+  // Step 3: draw auto-cropped content into output, removing background
   const size = 42
   const out = document.createElement("canvas")
   out.width = size
   out.height = size
   const oc = out.getContext("2d")!
-  oc.drawImage(sprite, minX, minY, cropW, cropH, 0, 0, size, size)
+  // Draw from the tmp canvas (already sub-cropped) using the auto-crop bounds
+  oc.drawImage(tmp, minX, minY, cropW, cropH, 0, 0, size, size)
 
   const imgData = oc.getImageData(0, 0, size, size)
   const d = imgData.data
@@ -244,7 +256,7 @@ function getProcessedSprite(sprite: HTMLImageElement, color: string): HTMLCanvas
   return out
 }
 
-export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick: number, isSelected: boolean, sprite?: HTMLImageElement) {
+export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick: number, isSelected: boolean, sprite?: HTMLImageElement, cropRegion?: [number, number, number, number]) {
   const x = Math.round(agent.pixelX)
   const y = Math.round(agent.pixelY)
   const c = agent.color
@@ -279,7 +291,7 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
   const drawX = x - spriteSize / 2 + 8
 
   if (sprite) {
-    const tinted = getProcessedSprite(sprite, c)
+    const tinted = getProcessedSprite(sprite, c, cropRegion)
     ctx.save()
     // Flip horizontally if facing left
     if (agent.direction === "left") {

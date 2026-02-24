@@ -13,14 +13,21 @@ const BG_IMAGES: Record<string, string> = {
   research: "/bg-research.jpg",
 }
 
-const SPRITE_PATHS = [
-  "/sprites/robot-tv.gif",      // 0 - TV headed bot
-  "/sprites/robot-tank.gif",    // 1 - Tank treaded bot
-  "/sprites/robot-blue.gif",    // 2 - Blue cartoon bot
-  "/sprites/robot-gold.gif",    // 3 - Gold pixel bot
-  "/sprites/robot-runner.gif",  // 4 - Running humanoid bot
-  "/sprites/robot-heavy.webp",  // 5 - Heavy dark bot
-  "/sprites/robot-green.gif",   // 6 - Green walking bot
+// Each sprite config: path + optional crop region (fraction 0-1) to extract a single pose from sprite sheets
+interface SpriteConfig {
+  path: string
+  // Crop region as fractions of image dimensions: [x, y, w, h]. If omitted, auto-crop is used.
+  crop?: [number, number, number, number]
+}
+
+const SPRITE_CONFIGS: SpriteConfig[] = [
+  { path: "/sprites/robot-tv.gif" },                             // 0 - TV headed bot (single pose)
+  { path: "/sprites/robot-tank.gif" },                           // 1 - Tank treaded bot (single pose)
+  { path: "/sprites/robot-blue.gif", crop: [0.3, 0.5, 0.4, 0.5] },  // 2 - Blue bot: front-center pose (bottom middle)
+  { path: "/sprites/robot-gold.gif" },                           // 3 - Gold pixel bot (single pose)
+  { path: "/sprites/robot-runner.gif", crop: [0.5, 0, 0.5, 1] },    // 4 - Runner bot: right frame only
+  { path: "/sprites/robot-heavy.webp" },                         // 5 - Heavy dark bot (single pose)
+  { path: "/sprites/robot-green.gif" },                          // 6 - Green walking bot (single pose)
 ]
 
 interface PixelCityProps {
@@ -36,56 +43,40 @@ export function PixelCity({ agents, districts, selectedAgentId, onSelectAgent, t
   const containerRef = useRef<HTMLDivElement>(null)
   const [images, setImages] = useState<Record<string, HTMLImageElement>>({})
   const [sprites, setSprites] = useState<HTMLImageElement[]>([])
+  const spriteCrops = useRef<(([number, number, number, number]) | undefined)[]>([])
 
   // Preload all background images and robot sprites
   useEffect(() => {
     const loaded: Record<string, HTMLImageElement> = {}
-    const loadedSprites: (HTMLImageElement | null)[] = new Array(SPRITE_PATHS.length).fill(null)
+    const loadedSprites: (HTMLImageElement | null)[] = new Array(SPRITE_CONFIGS.length).fill(null)
+    const crops: (([number, number, number, number]) | undefined)[] = SPRITE_CONFIGS.map(c => c.crop)
+    spriteCrops.current = crops
     let count = 0
     const totalBg = Object.keys(BG_IMAGES).length
-    const totalSprites = SPRITE_PATHS.length
+    const totalSprites = SPRITE_CONFIGS.length
     const total = totalBg + totalSprites
+
+    const checkDone = () => {
+      if (count === total) {
+        setImages({ ...loaded })
+        setSprites(loadedSprites.filter(Boolean) as HTMLImageElement[])
+      }
+    }
 
     Object.entries(BG_IMAGES).forEach(([key, src]) => {
       const img = new Image()
       img.crossOrigin = "anonymous"
-      img.onload = () => {
-        loaded[key] = img
-        count++
-        if (count === total) {
-          setImages({ ...loaded })
-          setSprites(loadedSprites.filter(Boolean) as HTMLImageElement[])
-        }
-      }
-      img.onerror = () => {
-        count++
-        if (count === total) {
-          setImages({ ...loaded })
-          setSprites(loadedSprites.filter(Boolean) as HTMLImageElement[])
-        }
-      }
+      img.onload = () => { loaded[key] = img; count++; checkDone() }
+      img.onerror = () => { count++; checkDone() }
       img.src = src
     })
 
-    SPRITE_PATHS.forEach((src, idx) => {
+    SPRITE_CONFIGS.forEach((cfg, idx) => {
       const img = new Image()
       img.crossOrigin = "anonymous"
-      img.onload = () => {
-        loadedSprites[idx] = img
-        count++
-        if (count === total) {
-          setImages({ ...loaded })
-          setSprites(loadedSprites.filter(Boolean) as HTMLImageElement[])
-        }
-      }
-      img.onerror = () => {
-        count++
-        if (count === total) {
-          setImages({ ...loaded })
-          setSprites(loadedSprites.filter(Boolean) as HTMLImageElement[])
-        }
-      }
-      img.src = src
+      img.onload = () => { loadedSprites[idx] = img; count++; checkDone() }
+      img.onerror = () => { count++; checkDone() }
+      img.src = cfg.path
     })
   }, [])
 
@@ -142,8 +133,10 @@ export function PixelCity({ agents, districts, selectedAgentId, onSelectAgent, t
     // Draw agents sorted by Y for depth
     const sorted = [...agents].sort((a, b) => a.pixelY - b.pixelY)
     for (const agent of sorted) {
-      const agentSprite = sprites[agent.spriteId % sprites.length] || sprites[0]
-      drawBot(ctx, agent, tick, agent.id === selectedAgentId, agentSprite)
+      const spriteIdx = agent.spriteId % sprites.length
+      const agentSprite = sprites[spriteIdx] || sprites[0]
+      const crop = spriteCrops.current[agent.spriteId % SPRITE_CONFIGS.length]
+      drawBot(ctx, agent, tick, agent.id === selectedAgentId, agentSprite, crop)
     }
 
     // Title
