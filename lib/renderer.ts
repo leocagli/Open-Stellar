@@ -31,9 +31,16 @@ function lighten(hex: string, amount: number): string {
 }
 
 export function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, tick: number) {
+  // Main building body
   drawPixelRect(ctx, x, y, w, h, darken(color, 40))
+  // Roof accent
   drawPixelRect(ctx, x + 2, y + 2, w - 4, 4, lighten(color, 30))
+  // Roof antenna
+  drawRect(ctx, x + Math.floor(w / 2) - 1, y - 6, 2, 6, darken(color, 20))
+  const blink = Math.sin(tick * 0.1 + x) > 0.5
+  drawRect(ctx, x + Math.floor(w / 2) - 2, y - 8, 4, 2, blink ? lighten(color, 80) : darken(color, 30))
 
+  // Windows
   const winW = 6
   const winH = 6
   const gap = 4
@@ -50,25 +57,82 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number
   }
 }
 
-export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: number) {
-  ctx.fillStyle = d.bgColor
-  ctx.fillRect(d.x, d.y, d.w, d.h)
+export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: number, bgImage?: HTMLImageElement) {
+  // Save state for clipping
+  ctx.save()
 
-  ctx.strokeStyle = d.color + "44"
-  ctx.lineWidth = 1
-  ctx.setLineDash([4, 4])
-  ctx.strokeRect(d.x + 0.5, d.y + 0.5, d.w - 1, d.h - 1)
-  ctx.setLineDash([])
+  // Clip to district bounds with rounded corners
+  const radius = 8
+  ctx.beginPath()
+  ctx.moveTo(d.x + radius, d.y)
+  ctx.lineTo(d.x + d.w - radius, d.y)
+  ctx.quadraticCurveTo(d.x + d.w, d.y, d.x + d.w, d.y + radius)
+  ctx.lineTo(d.x + d.w, d.y + d.h - radius)
+  ctx.quadraticCurveTo(d.x + d.w, d.y + d.h, d.x + d.w - radius, d.y + d.h)
+  ctx.lineTo(d.x + radius, d.y + d.h)
+  ctx.quadraticCurveTo(d.x, d.y + d.h, d.x, d.y + d.h - radius)
+  ctx.lineTo(d.x, d.y + radius)
+  ctx.quadraticCurveTo(d.x, d.y, d.x + radius, d.y)
+  ctx.closePath()
+  ctx.clip()
 
+  // Draw background image or fallback color
+  if (bgImage) {
+    ctx.drawImage(bgImage, d.x, d.y, d.w, d.h)
+    // Semi-transparent overlay to darken and tint with district color
+    ctx.fillStyle = d.bgColor + "cc"
+    ctx.fillRect(d.x, d.y, d.w, d.h)
+  } else {
+    ctx.fillStyle = d.bgColor
+    ctx.fillRect(d.x, d.y, d.w, d.h)
+  }
+
+  // Pixel scanline effect over the background
+  ctx.fillStyle = "rgba(0,0,0,0.08)"
+  for (let sy = d.y; sy < d.y + d.h; sy += 4) {
+    ctx.fillRect(d.x, sy, d.w, 1)
+  }
+
+  ctx.restore()
+
+  // Border glow
+  ctx.strokeStyle = d.color + "55"
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(d.x + radius, d.y)
+  ctx.lineTo(d.x + d.w - radius, d.y)
+  ctx.quadraticCurveTo(d.x + d.w, d.y, d.x + d.w, d.y + radius)
+  ctx.lineTo(d.x + d.w, d.y + d.h - radius)
+  ctx.quadraticCurveTo(d.x + d.w, d.y + d.h, d.x + d.w - radius, d.y + d.h)
+  ctx.lineTo(d.x + radius, d.y + d.h)
+  ctx.quadraticCurveTo(d.x, d.y + d.h, d.x, d.y + d.h - radius)
+  ctx.lineTo(d.x, d.y + radius)
+  ctx.quadraticCurveTo(d.x, d.y, d.x + radius, d.y)
+  ctx.closePath()
+  ctx.stroke()
+
+  // Animated corner glow pulses
+  const pulse = Math.sin(tick * 0.05) * 0.3 + 0.7
+  ctx.fillStyle = d.color + Math.round(pulse * 80).toString(16).padStart(2, "0")
+  ctx.fillRect(d.x, d.y, 3, 3)
+  ctx.fillRect(d.x + d.w - 3, d.y, 3, 3)
+  ctx.fillRect(d.x, d.y + d.h - 3, 3, 3)
+  ctx.fillRect(d.x + d.w - 3, d.y + d.h - 3, 3, 3)
+
+  // Draw buildings
   const bx = d.x + 8
-  const by = d.y + d.h - 60
+  const by = d.y + d.h - 64
   drawBuilding(ctx, bx, by, 30, 52, d.color, tick)
   drawBuilding(ctx, bx + 38, by + 16, 24, 36, d.color, tick)
   drawBuilding(ctx, d.x + d.w - 42, by + 8, 28, 44, d.color, tick)
 
-  ctx.font = "bold 11px monospace"
+  // District label with background pill
+  ctx.font = "bold 10px monospace"
+  const labelW = ctx.measureText(d.name.toUpperCase()).width + 12
+  ctx.fillStyle = d.bgColor + "dd"
+  ctx.fillRect(d.x + 6, d.y + 6, labelW, 18)
   ctx.fillStyle = d.color
-  ctx.fillText(d.name.toUpperCase(), d.x + 8, d.y + 18)
+  ctx.fillText(d.name.toUpperCase(), d.x + 12, d.y + 18)
 }
 
 export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick: number, isSelected: boolean) {
@@ -79,24 +143,36 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
   const bobY = agent.status === "working" ? Math.sin(tick * 0.15) * 2 : 0
 
   if (isSelected) {
+    // Pulsing selection ring
+    const ringPulse = Math.sin(tick * 0.08) * 2 + 18
     ctx.strokeStyle = "#ffffff"
-    ctx.lineWidth = 1
+    ctx.lineWidth = 1.5
     ctx.beginPath()
-    ctx.arc(x + 8, y + 10, 16, 0, Math.PI * 2)
+    ctx.arc(x + 8, y + 10, ringPulse, 0, Math.PI * 2)
+    ctx.stroke()
+    // Glow
+    ctx.strokeStyle = c + "66"
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.arc(x + 8, y + 10, ringPulse + 2, 0, Math.PI * 2)
     ctx.stroke()
   }
 
-  // shadow
-  ctx.fillStyle = "rgba(0,0,0,0.3)"
-  ctx.fillRect(x + 2, y + 18, 12, 3)
+  // Shadow
+  ctx.fillStyle = "rgba(0,0,0,0.35)"
+  ctx.beginPath()
+  ctx.ellipse(x + 8, y + 20, 7, 3, 0, 0, Math.PI * 2)
+  ctx.fill()
 
-  // body
   const by = y + bobY
+
+  // Body
   drawRect(ctx, x + 2, by + 6, 12, 10, darken(c, 40))
   drawRect(ctx, x + 4, by + 8, 8, 6, c)
 
-  // head
+  // Head
   drawRect(ctx, x + 3, by, 10, 8, c)
+  // Eyes
   drawRect(ctx, x + 5, by + 2, 2, 2, "#000")
   drawRect(ctx, x + 9, by + 2, 2, 2, "#000")
 
@@ -109,15 +185,25 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
     drawRect(ctx, x + 9, by + 2, 2, 2, "#f87171")
   }
 
-  // antenna
+  // Antenna
   drawRect(ctx, x + 7, by - 4, 2, 4, c)
   const antennaGlow = Math.sin(tick * 0.1) > 0
   if (agent.status !== "offline") {
     drawRect(ctx, x + 6, by - 6, 4, 2, antennaGlow ? lighten(c, 80) : c)
+    // Signal waves for working bots
+    if (agent.status === "working" && antennaGlow) {
+      ctx.strokeStyle = c + "44"
+      ctx.lineWidth = 1
+      for (let r = 0; r < 2; r++) {
+        ctx.beginPath()
+        ctx.arc(x + 8, by - 6, 4 + r * 4, -Math.PI * 0.8, -Math.PI * 0.2)
+        ctx.stroke()
+      }
+    }
   }
 
-  // legs
-  const legFrame = agent.status === "working" || (agent.pixelX !== agent.targetX) ? frame : 0
+  // Legs with animation
+  const legFrame = agent.status === "working" || (Math.abs(agent.pixelX - agent.targetX) > 2) ? frame : 0
   if (legFrame % 2 === 0) {
     drawRect(ctx, x + 4, by + 16, 2, 4, darken(c, 30))
     drawRect(ctx, x + 10, by + 14, 2, 4, darken(c, 30))
@@ -126,7 +212,7 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
     drawRect(ctx, x + 10, by + 16, 2, 4, darken(c, 30))
   }
 
-  // arms
+  // Arms
   if (agent.status === "working") {
     const armSwing = Math.sin(tick * 0.2) * 2
     drawRect(ctx, x, by + 8 + armSwing, 2, 6, darken(c, 20))
@@ -136,7 +222,7 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
     drawRect(ctx, x + 14, by + 8, 2, 6, darken(c, 20))
   }
 
-  // status indicator
+  // Status indicator dot
   const statusColors: Record<string, string> = {
     active: "#34d399",
     working: "#fbbf24",
@@ -146,26 +232,32 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
   }
   drawRect(ctx, x + 14, by, 4, 4, statusColors[agent.status] || "#64748b")
 
-  // name label
-  ctx.font = "9px monospace"
-  ctx.fillStyle = c
+  // Name label
+  ctx.font = "bold 8px monospace"
+  ctx.fillStyle = "#000000"
   ctx.textAlign = "center"
+  ctx.fillText(agent.name, x + 9, y + 29)
+  ctx.fillStyle = c
   ctx.fillText(agent.name, x + 8, y + 28)
   ctx.textAlign = "left"
 
-  // task progress bar
+  // Task progress bar
   if (agent.status === "working" && agent.taskProgress > 0) {
-    const barW = 20
+    const barW = 22
     const barH = 3
-    const bx = x - 2
-    const barY = y + 30
-    drawRect(ctx, bx, barY, barW, barH, "#1e293b")
-    drawRect(ctx, bx, barY, Math.floor(barW * agent.taskProgress / 100), barH, c)
+    const barX = x - 3
+    const barY = y + 32
+    drawRect(ctx, barX, barY, barW, barH, "#0a0e17")
+    drawRect(ctx, barX, barY, Math.floor(barW * agent.taskProgress / 100), barH, c)
+    // Bar border
+    ctx.strokeStyle = c + "44"
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(barX, barY, barW, barH)
   }
 }
 
 export function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  ctx.strokeStyle = "#1a2235"
+  ctx.strokeStyle = "#1a223522"
   ctx.lineWidth = 0.5
   for (let x = 0; x < w; x += 40) {
     ctx.beginPath()
@@ -182,32 +274,42 @@ export function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
 }
 
 export function drawRoads(ctx: CanvasRenderingContext2D, districts: District[]) {
-  ctx.strokeStyle = "#2a3a52"
-  ctx.lineWidth = 4
-  ctx.setLineDash([8, 6])
-
+  // Road shadows
+  ctx.strokeStyle = "#0a0e17"
+  ctx.lineWidth = 8
+  ctx.setLineDash([])
   for (let i = 0; i < districts.length - 1; i++) {
     const a = districts[i]
     const b = districts[i + 1]
-    const ax = a.x + a.w / 2
-    const ay = a.y + a.h / 2
-    const bx = b.x + b.w / 2
-    const by = b.y + b.h / 2
     ctx.beginPath()
-    ctx.moveTo(ax, ay)
-    ctx.lineTo(bx, by)
+    ctx.moveTo(a.x + a.w / 2, a.y + a.h / 2)
+    ctx.lineTo(b.x + b.w / 2, b.y + b.h / 2)
     ctx.stroke()
   }
 
-  ctx.setLineDash([])
-}
-
-export function drawStars(ctx: CanvasRenderingContext2D, w: number, h: number, tick: number) {
-  for (let i = 0; i < 60; i++) {
-    const sx = (i * 137.5 + 50) % w
-    const sy = (i * 97.3 + 20) % (h * 0.3)
-    const brightness = Math.sin(tick * 0.03 + i * 1.7) * 0.5 + 0.5
-    ctx.fillStyle = `rgba(255,255,255,${0.2 + brightness * 0.5})`
-    ctx.fillRect(sx, sy, 2, 2)
+  // Road surface
+  ctx.strokeStyle = "#1e293b"
+  ctx.lineWidth = 6
+  for (let i = 0; i < districts.length - 1; i++) {
+    const a = districts[i]
+    const b = districts[i + 1]
+    ctx.beginPath()
+    ctx.moveTo(a.x + a.w / 2, a.y + a.h / 2)
+    ctx.lineTo(b.x + b.w / 2, b.y + b.h / 2)
+    ctx.stroke()
   }
+
+  // Dashed center line
+  ctx.strokeStyle = "#2a3a52"
+  ctx.lineWidth = 1
+  ctx.setLineDash([6, 8])
+  for (let i = 0; i < districts.length - 1; i++) {
+    const a = districts[i]
+    const b = districts[i + 1]
+    ctx.beginPath()
+    ctx.moveTo(a.x + a.w / 2, a.y + a.h / 2)
+    ctx.lineTo(b.x + b.w / 2, b.y + b.h / 2)
+    ctx.stroke()
+  }
+  ctx.setLineDash([])
 }
