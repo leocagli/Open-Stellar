@@ -5,7 +5,6 @@ import type { MoltbotAgent, District } from "@/lib/types"
 import { drawGrid, drawRoads, drawDistrict, drawBot } from "@/lib/renderer"
 
 const BG_IMAGES: Record<string, string> = {
-  sky: "/bg-sky.gif",
   "data-center": "/bg-data-center.jpg",
   "comm-hub": "/bg-comm-hub.jpg",
   processing: "/bg-processing.jpg",
@@ -110,17 +109,8 @@ export function PixelCity({ agents, districts, selectedAgentId, onSelectAgent, t
     const w = canvas.width / dpr
     const h = canvas.height / dpr
 
-    // Sky background -- animated GIF drawn each frame
+    // Clear canvas (transparent -- the city GIF background shows through behind it)
     ctx.clearRect(0, 0, w, h)
-    if (images.sky) {
-      ctx.drawImage(images.sky, 0, 0, w, h)
-      // Very light overlay so district zones stand out
-      ctx.fillStyle = "rgba(10, 14, 23, 0.2)"
-      ctx.fillRect(0, 0, w, h)
-    } else {
-      ctx.fillStyle = "#0a0e17"
-      ctx.fillRect(0, 0, w, h)
-    }
 
     drawGrid(ctx, w, h)
     drawRoads(ctx, districts)
@@ -172,11 +162,34 @@ export function PixelCity({ agents, districts, selectedAgentId, onSelectAgent, t
   )
 
   return (
-    <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
+    <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden" }}>
+      {/* Full-viewport animated city GIF background */}
+      <img
+        src="/bg-city.gif"
+        alt=""
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          zIndex: 0,
+          pointerEvents: "none",
+          imageRendering: "pixelated",
+        }}
+      />
       <canvas
         ref={canvasRef}
         onClick={handleClick}
-        style={{ cursor: "crosshair", display: "block", imageRendering: "pixelated" }}
+        style={{
+          cursor: "crosshair",
+          display: "block",
+          imageRendering: "pixelated",
+          position: "relative",
+          zIndex: 1,
+        }}
       />
     </div>
   )
