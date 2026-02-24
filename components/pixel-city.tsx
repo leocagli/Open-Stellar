@@ -5,7 +5,7 @@ import type { MoltbotAgent, District } from "@/lib/types"
 import { drawGrid, drawRoads, drawDistrict, drawBot } from "@/lib/renderer"
 
 const BG_IMAGES: Record<string, string> = {
-  sky: "/bg-sky.jpg",
+  sky: "/bg-sky.gif",
   "data-center": "/bg-data-center.jpg",
   "comm-hub": "/bg-comm-hub.jpg",
   processing: "/bg-processing.jpg",
@@ -80,26 +80,16 @@ export function PixelCity({ agents, districts, selectedAgentId, onSelectAgent, t
     const w = canvas.width / dpr
     const h = canvas.height / dpr
 
-    // Sky background
+    // Sky background -- animated GIF drawn each frame
     ctx.clearRect(0, 0, w, h)
     if (images.sky) {
       ctx.drawImage(images.sky, 0, 0, w, h)
-      // Darken overlay for better contrast
-      ctx.fillStyle = "rgba(10, 14, 23, 0.35)"
+      // Very light overlay so district zones stand out
+      ctx.fillStyle = "rgba(10, 14, 23, 0.2)"
       ctx.fillRect(0, 0, w, h)
     } else {
       ctx.fillStyle = "#0a0e17"
       ctx.fillRect(0, 0, w, h)
-    }
-
-    // Animated pixel stars on top of sky image
-    for (let i = 0; i < 80; i++) {
-      const sx = (i * 137.5 + 50) % w
-      const sy = (i * 97.3 + 20) % (h * 0.4)
-      const brightness = Math.sin(tick * 0.03 + i * 1.7) * 0.5 + 0.5
-      ctx.fillStyle = `rgba(255,255,255,${0.15 + brightness * 0.45})`
-      const size = i % 5 === 0 ? 3 : 2
-      ctx.fillRect(Math.round(sx), Math.round(sy), size, size)
     }
 
     drawGrid(ctx, w, h)
