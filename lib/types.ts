@@ -2,6 +2,40 @@ export type AgentStatus = "active" | "idle" | "working" | "error" | "offline"
 
 export type DistrictId = "data-center" | "comm-hub" | "processing" | "defense" | "research"
 
+export interface Skill {
+  id: string
+  name: string
+  level: number
+  maxLevel: number
+  xp: number
+  xpToNext: number
+}
+
+export interface StellarWallet {
+  publicKey: string
+  balance: string
+  funded: boolean
+}
+
+export interface ChatMessage {
+  id: number
+  fromAgentId: string
+  fromName: string
+  toName: string
+  message: string
+  timestamp: string
+  fromColor: string
+}
+
+export interface WalletTransaction {
+  id: number
+  fromName: string
+  toName: string
+  amount: string
+  timestamp: string
+  hash: string
+}
+
 export interface MoltbotAgent {
   id: string
   name: string
@@ -21,6 +55,8 @@ export interface MoltbotAgent {
   frame: number
   direction: "left" | "right"
   spriteId: number
+  skills: Skill[]
+  wallet?: StellarWallet
 }
 
 export interface District {
