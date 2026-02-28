@@ -13,7 +13,6 @@ export interface Skill {
 
 export interface StellarWallet {
   publicKey: string
-  secretKey: string
   balance: string
   funded: boolean
 }
