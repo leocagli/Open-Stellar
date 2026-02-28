@@ -19,7 +19,7 @@ export default function CityPage() {
   const [tick, setTick] = useState(0)
   const [paused, setPaused] = useState(false)
   const [ready, setReady] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const logId = useRef(0)
   const chatTickRef = useRef(0)
 

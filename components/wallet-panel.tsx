@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import type { MoltbotAgent, WalletTransaction } from "@/lib/types"
-import { generateKeypair, fundTestnetAccount, getBalance, sendPayment, truncateKey } from "@/lib/stellar"
 
 interface WalletPanelProps {
   agents: MoltbotAgent[]
@@ -10,6 +9,11 @@ interface WalletPanelProps {
   transactions: WalletTransaction[]
   onUpdateAgent: (agentId: string, wallet: MoltbotAgent["wallet"]) => void
   onAddTransaction: (tx: WalletTransaction) => void
+}
+
+function truncateKey(key: string): string {
+  if (key.length <= 12) return key
+  return key.slice(0, 6) + "..." + key.slice(-6)
 }
 
 function WalletBtn({ label, onClick, disabled, color }: { label: string; onClick: () => void; disabled?: boolean; color: string }) {
@@ -45,13 +49,19 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
   const handleGenerate = async (agent: MoltbotAgent) => {
     setLoading("generate")
     setError(null)
-    const kp = generateKeypair()
-    onUpdateAgent(agent.id, {
-      publicKey: kp.publicKey,
-      secretKey: kp.secretKey,
-      balance: "0",
-      funded: false,
-    })
+    try {
+      const res = await fetch("/api/stellar/keypair", { method: "POST" })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      onUpdateAgent(agent.id, {
+        publicKey: data.publicKey,
+        secretKey: data.secretKey,
+        balance: "0",
+        funded: false,
+      })
+    } catch (e) {
+      setError("Failed to generate keypair")
+    }
     setLoading(null)
   }
 
@@ -59,11 +69,16 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
     if (!agent.wallet) return
     setLoading("fund")
     setError(null)
-    const ok = await fundTestnetAccount(agent.wallet.publicKey)
-    if (ok) {
-      const bal = await getBalance(agent.wallet.publicKey)
-      onUpdateAgent(agent.id, { ...agent.wallet, balance: bal, funded: true })
-    } else {
+    try {
+      const res = await fetch("/api/stellar/fund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicKey: agent.wallet.publicKey }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      onUpdateAgent(agent.id, { ...agent.wallet, balance: data.balance, funded: true })
+    } catch (e) {
       setError("Friendbot funding failed. Try again.")
     }
     setLoading(null)
@@ -72,8 +87,17 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
   const handleRefresh = async (agent: MoltbotAgent) => {
     if (!agent.wallet) return
     setLoading("refresh")
-    const bal = await getBalance(agent.wallet.publicKey)
-    onUpdateAgent(agent.id, { ...agent.wallet, balance: bal })
+    try {
+      const res = await fetch("/api/stellar/balance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicKey: agent.wallet.publicKey }),
+      })
+      const data = await res.json()
+      onUpdateAgent(agent.id, { ...agent.wallet, balance: data.balance || "0" })
+    } catch {
+      // silent fail on refresh
+    }
     setLoading(null)
   }
 
@@ -86,23 +110,46 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
     }
     setLoading("send")
     setError(null)
-    const result = await sendPayment(agent.wallet.secretKey, recipient.wallet.publicKey, sendAmount)
-    if (result.success) {
-      const bal = await getBalance(agent.wallet.publicKey)
-      onUpdateAgent(agent.id, { ...agent.wallet, balance: bal })
-      const rBal = await getBalance(recipient.wallet.publicKey)
-      onUpdateAgent(recipient.id, { ...recipient.wallet, balance: rBal })
+    try {
+      const res = await fetch("/api/stellar/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromSecret: agent.wallet.secretKey,
+          toPublic: recipient.wallet.publicKey,
+          amount: sendAmount,
+        }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+
+      // Refresh both balances
+      const [fromBal, toBal] = await Promise.all([
+        fetch("/api/stellar/balance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publicKey: agent.wallet.publicKey }),
+        }).then(r => r.json()),
+        fetch("/api/stellar/balance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publicKey: recipient.wallet.publicKey }),
+        }).then(r => r.json()),
+      ])
+
+      onUpdateAgent(agent.id, { ...agent.wallet, balance: fromBal.balance || "0" })
+      onUpdateAgent(recipient.id, { ...recipient.wallet, balance: toBal.balance || "0" })
       onAddTransaction({
         id: Date.now(),
         fromName: agent.name,
         toName: recipient.name,
         amount: sendAmount,
         timestamp: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }),
-        hash: result.hash,
+        hash: data.hash || "unknown",
       })
       setSendAmount("10")
       setSendTo("")
-    } else {
+    } catch (e) {
       setError("Transaction failed. Check balances.")
     }
     setLoading(null)
@@ -139,7 +186,6 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
       </div>
 
       {!wallet ? (
-        // No wallet yet
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: 20 }}>
           <div style={{ fontFamily: "monospace", fontSize: 11, color: "#64748b", textAlign: "center" }}>
             This bot has no Stellar wallet yet
@@ -249,7 +295,7 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
 
           {/* Error display */}
           {error && (
-            <div style={{ fontFamily: "monospace", fontSize: 10, color: "#f87171", padding: "6px 10px", background: "#2a141422", borderRadius: 4 }}>
+            <div style={{ fontFamily: "monospace", fontSize: 10, color: "#f87171", padding: "6px 10px", background: "#2a141422", borderRadius: 4, border: "1px solid #f8717122" }}>
               {error}
             </div>
           )}
