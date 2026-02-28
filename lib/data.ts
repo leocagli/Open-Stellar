@@ -1,4 +1,4 @@
-import type { MoltbotAgent, District, DistrictId } from "./types"
+import type { MoltbotAgent, District, DistrictId, Skill, ChatMessage } from "./types"
 
 export const DISTRICTS: District[] = [
   { id: "data-center", name: "Data Center", color: "#22d3ee", bgColor: "#0e2a30", x: 40, y: 60, w: 260, h: 200 },
@@ -16,7 +16,7 @@ const NAMES = [
 
 const MODELS = ["claude-4-sonnet", "claude-4-opus", "claude-3.5-haiku", "gpt-5-mini"]
 
-export const SPRITE_COUNT = 7 // total unique robot sprites
+export const SPRITE_COUNT = 7
 
 const TASKS: Record<DistrictId, string[]> = {
   "data-center": ["Indexing datasets", "Running backup", "Syncing replicas", "Compressing logs"],
@@ -26,9 +26,121 @@ const TASKS: Record<DistrictId, string[]> = {
   "research": ["Hypothesis test", "Paper analysis", "Experiment run", "Data visualization"],
 }
 
+// -------- Skills System --------
+
+const SKILL_POOL: Record<DistrictId, string[]> = {
+  "data-center": ["Data Mining", "Backup Ops", "Index Optimization", "Log Analysis", "Cache Tuning"],
+  "comm-hub": ["Encryption", "Signal Routing", "Protocol Design", "Relay Management", "Packet Analysis"],
+  processing: ["ML Training", "Tokenization", "Batch Processing", "Model Tuning", "Pipeline Ops"],
+  defense: ["Firewall Mgmt", "Threat Detection", "Anomaly Scan", "Perimeter Guard", "Intrusion Block"],
+  research: ["Hypothesis Testing", "Data Viz", "Paper Analysis", "Experiment Design", "Stats Modeling"],
+}
+
 function rand(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
+
+function generateSkills(district: DistrictId): Skill[] {
+  const pool = SKILL_POOL[district]
+  const count = rand(2, 4)
+  const shuffled = [...pool].sort(() => Math.random() - 0.5)
+  return shuffled.slice(0, count).map((name, i) => ({
+    id: `${district}-skill-${i}`,
+    name,
+    level: rand(1, 4),
+    maxLevel: 5,
+    xp: rand(0, 80),
+    xpToNext: 100,
+  }))
+}
+
+// -------- Chat System --------
+
+const CHAT_TEMPLATES: Record<string, string[]> = {
+  working: [
+    "Processing batch #{n}... looking good",
+    "Need more compute for this one",
+    "Almost done, {pct}% through this task",
+    "Running diagnostics on subsystem {n}",
+    "Data stream stable, throughput optimal",
+  ],
+  cross_district: [
+    "Hey @{to}, can you relay this dataset?",
+    "@{to}, sending findings from {fromDist}",
+    "Requesting backup from @{to} in {toDist}",
+    "@{to}, need your analysis on this anomaly",
+    "Syncing results with @{to}",
+  ],
+  idle: [
+    "Standing by... awaiting instructions",
+    "All clear in {dist}. Monitoring...",
+    "Systems nominal. Anyone need help?",
+    "Idle cycles... running self-diagnostics",
+  ],
+  error: [
+    "WARNING: Circuit overload in sector {n}!",
+    "Mayday! Rebooting subsystem...",
+    "Memory leak detected -- patching now",
+    "Critical error! Failover initiated",
+  ],
+  social: [
+    "@{to}, nice work on that last batch!",
+    "Stellar balance looking healthy today",
+    "Who wants to run a joint analysis?",
+    "@{to}, transfer confirmed. Thanks!",
+    "New skill unlocked! Leveling up {skill}",
+  ],
+}
+
+let chatIdCounter = 0
+
+export function generateChatMessage(agents: MoltbotAgent[]): ChatMessage | null {
+  if (agents.length < 2) return null
+
+  const from = agents[rand(0, agents.length - 1)]
+  let to = agents[rand(0, agents.length - 1)]
+  while (to.id === from.id) {
+    to = agents[rand(0, agents.length - 1)]
+  }
+
+  let category: string
+  if (from.status === "error") category = "error"
+  else if (from.status === "idle") category = "idle"
+  else if (from.district !== to.district) category = "cross_district"
+  else if (Math.random() < 0.3) category = "social"
+  else category = "working"
+
+  const templates = CHAT_TEMPLATES[category]
+  let msg = templates[rand(0, templates.length - 1)]
+
+  const fromDist = DISTRICTS.find(d => d.id === from.district)?.name || from.district
+  const toDist = DISTRICTS.find(d => d.id === to.district)?.name || to.district
+  const skillName = from.skills.length > 0 ? from.skills[rand(0, from.skills.length - 1)].name : "Data Ops"
+
+  msg = msg
+    .replace("{to}", to.name)
+    .replace("{from}", from.name)
+    .replace("{fromDist}", fromDist)
+    .replace("{toDist}", toDist)
+    .replace("{dist}", fromDist)
+    .replace("{skill}", skillName)
+    .replace("{n}", String(rand(1, 99)))
+    .replace("{pct}", String(rand(40, 95)))
+
+  chatIdCounter++
+  const now = new Date()
+  return {
+    id: chatIdCounter,
+    fromAgentId: from.id,
+    fromName: from.name,
+    toName: to.name,
+    message: msg,
+    timestamp: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }),
+    fromColor: from.color,
+  }
+}
+
+// -------- Agent Factory --------
 
 export function createAgents(): MoltbotAgent[] {
   const colors = ["#22d3ee", "#34d399", "#fbbf24", "#f87171", "#a78bfa", "#60a5fa", "#fb923c", "#e879f9", "#2dd4bf", "#facc15", "#818cf8", "#f472b6"]
@@ -56,6 +168,7 @@ export function createAgents(): MoltbotAgent[] {
       frame: 0,
       direction: "right" as const,
       spriteId: i % SPRITE_COUNT,
+      skills: generateSkills(district.id),
     }
   })
 }

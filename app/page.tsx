@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import type { MoltbotAgent, LogEntry } from "@/lib/types"
-import { DISTRICTS, createAgents, getRandomTask } from "@/lib/data"
+import type { MoltbotAgent, LogEntry, ChatMessage, WalletTransaction } from "@/lib/types"
+import { DISTRICTS, createAgents, getRandomTask, generateChatMessage } from "@/lib/data"
 import { PixelCity } from "@/components/pixel-city"
 import { SidebarPanel } from "@/components/sidebar-panel"
 
@@ -14,11 +14,14 @@ export default function CityPage() {
   const [agents, setAgents] = useState<MoltbotAgent[]>([])
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([])
   const [tick, setTick] = useState(0)
   const [paused, setPaused] = useState(false)
   const [ready, setReady] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const logId = useRef(0)
+  const chatTickRef = useRef(0)
 
   useEffect(() => {
     setAgents(createAgents())
@@ -31,6 +34,16 @@ export default function CityPage() {
     setLogs(prev => [...prev.slice(-50), { id: logId.current++, time, agent, message, type }])
   }, [])
 
+  // Wallet update callback
+  const handleUpdateAgent = useCallback((agentId: string, wallet: MoltbotAgent["wallet"]) => {
+    setAgents(prev => prev.map(a => a.id === agentId ? { ...a, wallet } : a))
+  }, [])
+
+  const handleAddTransaction = useCallback((tx: WalletTransaction) => {
+    setTransactions(prev => [...prev.slice(-30), tx])
+  }, [])
+
+  // Main simulation loop
   useEffect(() => {
     if (paused || !ready) return
     const interval = setInterval(() => {
@@ -50,22 +63,37 @@ export default function CityPage() {
             updated.pixelY += (dy / dist) * 1.2
             updated.direction = dx > 0 ? "right" : "left"
           } else {
-            // Pick new target within district
             if (Math.random() < 0.02) {
               updated.targetX = district.x + 30 + Math.random() * (district.w - 60)
               updated.targetY = district.y + 40 + Math.random() * (district.h - 60)
             }
           }
 
-          // Update task progress
+          // Update task progress + skill XP for working bots
           if (updated.status === "working") {
             updated.taskProgress = clamp(updated.taskProgress + Math.random() * 3, 0, 100)
+
+            // Skill XP gain while working
+            if (Math.random() < 0.04 && updated.skills.length > 0) {
+              const skillIdx = Math.floor(Math.random() * updated.skills.length)
+              const skill = { ...updated.skills[skillIdx] }
+              if (skill.level < skill.maxLevel) {
+                skill.xp += Math.floor(Math.random() * 8) + 2
+                if (skill.xp >= skill.xpToNext) {
+                  skill.level = Math.min(skill.level + 1, skill.maxLevel)
+                  skill.xp = 0
+                }
+              }
+              updated.skills = [...updated.skills]
+              updated.skills[skillIdx] = skill
+            }
+
             if (updated.taskProgress >= 100) {
               updated.tasksCompleted++
               updated.taskProgress = 0
               updated.status = Math.random() > 0.1 ? "active" : "idle"
               updated.currentTask = null
-              return updated // return early, log will be added below
+              return updated
             }
           }
 
@@ -97,7 +125,20 @@ export default function CityPage() {
     return () => clearInterval(interval)
   }, [paused, ready])
 
-  // Log events from state transitions
+  // Chat message generation (every ~50-80 ticks)
+  useEffect(() => {
+    if (paused || !ready || agents.length < 2) return
+    chatTickRef.current++
+    const interval = 50 + Math.floor(Math.random() * 30)
+    if (chatTickRef.current % interval === 0) {
+      const msg = generateChatMessage(agents)
+      if (msg) {
+        setChatMessages(prev => [...prev.slice(-50), msg])
+      }
+    }
+  }, [tick, paused, ready, agents])
+
+  // Log events
   useEffect(() => {
     if (tick % 30 === 0 && tick > 0) {
       const working = agents.filter(a => a.status === "working")
@@ -171,7 +212,7 @@ export default function CityPage() {
         </button>
       </div>
 
-      {/* Toggle sidebar button -- always visible */}
+      {/* Toggle sidebar button */}
       <button
         onClick={() => setSidebarOpen(prev => !prev)}
         aria-label={sidebarOpen ? "Close panel" : "Open panel"}
@@ -217,7 +258,11 @@ export default function CityPage() {
           agents={agents}
           selectedAgent={selectedAgent}
           logs={logs}
+          chatMessages={chatMessages}
+          transactions={transactions}
           onSelectAgent={setSelectedAgentId}
+          onUpdateAgent={handleUpdateAgent}
+          onAddTransaction={handleAddTransaction}
         />
       </div>
     </div>

@@ -1,13 +1,30 @@
 "use client"
 
-import type { MoltbotAgent, District, LogEntry } from "@/lib/types"
+import { useState } from "react"
+import type { MoltbotAgent, LogEntry, ChatMessage, WalletTransaction } from "@/lib/types"
 import { DISTRICTS } from "@/lib/data"
+import { ChatPanel } from "./chat-panel"
+import { SkillsPanel } from "./skills-panel"
+import { WalletPanel } from "./wallet-panel"
+
+type TabId = "overview" | "chat" | "skills" | "wallet"
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "chat", label: "Chat" },
+  { id: "skills", label: "Skills" },
+  { id: "wallet", label: "Wallet" },
+]
 
 interface SidebarPanelProps {
   agents: MoltbotAgent[]
   selectedAgent: MoltbotAgent | null
   logs: LogEntry[]
+  chatMessages: ChatMessage[]
+  transactions: WalletTransaction[]
   onSelectAgent: (id: string | null) => void
+  onUpdateAgent: (agentId: string, wallet: MoltbotAgent["wallet"]) => void
+  onAddTransaction: (tx: WalletTransaction) => void
 }
 
 function StatBox({ label, value, color }: { label: string; value: string | number; color: string }) {
@@ -66,7 +83,12 @@ function AgentRow({ agent, isSelected, onClick }: { agent: MoltbotAgent; isSelec
   )
 }
 
-export function SidebarPanel({ agents, selectedAgent, logs, onSelectAgent }: SidebarPanelProps) {
+function OverviewTab({ agents, selectedAgent, logs, onSelectAgent }: {
+  agents: MoltbotAgent[]
+  selectedAgent: MoltbotAgent | null
+  logs: LogEntry[]
+  onSelectAgent: (id: string | null) => void
+}) {
   const active = agents.filter(a => a.status === "active" || a.status === "working").length
   const working = agents.filter(a => a.status === "working").length
   const errors = agents.filter(a => a.status === "error").length
@@ -77,16 +99,7 @@ export function SidebarPanel({ agents, selectedAgent, logs, onSelectAgent }: Sid
   }
 
   return (
-    <div style={{
-      width: 320,
-      height: "100%",
-      background: "#111827",
-      borderLeft: "1px solid #2a3a52",
-      display: "flex",
-      flexDirection: "column",
-      overflow: "hidden",
-      flexShrink: 0,
-    }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Stats */}
       <div style={{ padding: 12, borderBottom: "1px solid #2a3a52" }}>
         <div style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
@@ -122,27 +135,28 @@ export function SidebarPanel({ agents, selectedAgent, logs, onSelectAgent }: Sid
             District: {DISTRICTS.find(d => d.id === selectedAgent.district)?.name}
           </div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8 }}>
-            Status: <span style={{ color: selectedAgent.status === "error" ? "#f87171" : "#34d399", fontWeight: 600 }}>
+            {"Status: "}
+            <span style={{ color: selectedAgent.status === "error" ? "#f87171" : "#34d399", fontWeight: 600 }}>
               {selectedAgent.status.toUpperCase()}
             </span>
           </div>
 
-          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4 }}>CPU {selectedAgent.cpu}%</div>
+          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4 }}>{"CPU " + selectedAgent.cpu + "%"}</div>
           <ProgressBar value={selectedAgent.cpu} color="#22d3ee" />
-          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4, marginTop: 6 }}>Memory {selectedAgent.memory}%</div>
+          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4, marginTop: 6 }}>{"Memory " + selectedAgent.memory + "%"}</div>
           <ProgressBar value={selectedAgent.memory} color="#a78bfa" />
 
           {selectedAgent.currentTask && (
             <>
               <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4, marginTop: 6 }}>
-                Task: {selectedAgent.currentTask}
+                {"Task: " + selectedAgent.currentTask}
               </div>
               <ProgressBar value={selectedAgent.taskProgress} color={selectedAgent.color} />
             </>
           )}
 
           <div suppressHydrationWarning style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
-            Completed: {selectedAgent.tasksCompleted} tasks
+            {"Completed: " + selectedAgent.tasksCompleted + " tasks"}
           </div>
         </div>
       )}
@@ -150,7 +164,7 @@ export function SidebarPanel({ agents, selectedAgent, logs, onSelectAgent }: Sid
       {/* Agent list */}
       <div style={{ flex: 1, overflow: "auto", padding: "8px 8px" }}>
         <div style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, padding: "0 4px" }}>
-          Agents ({agents.length})
+          {"Agents (" + agents.length + ")"}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {agents.map(a => (
@@ -165,7 +179,7 @@ export function SidebarPanel({ agents, selectedAgent, logs, onSelectAgent }: Sid
       </div>
 
       {/* Activity log */}
-      <div style={{ height: 160, borderTop: "1px solid #2a3a52", overflow: "auto", padding: 8 }}>
+      <div style={{ height: 140, borderTop: "1px solid #2a3a52", overflow: "auto", padding: 8 }}>
         <div style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
           Activity Log
         </div>
@@ -177,6 +191,105 @@ export function SidebarPanel({ agents, selectedAgent, logs, onSelectAgent }: Sid
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+export function SidebarPanel({
+  agents,
+  selectedAgent,
+  logs,
+  chatMessages,
+  transactions,
+  onSelectAgent,
+  onUpdateAgent,
+  onAddTransaction,
+}: SidebarPanelProps) {
+  const [activeTab, setActiveTab] = useState<TabId>("overview")
+
+  const chatCount = chatMessages.length
+
+  return (
+    <div style={{
+      width: 320,
+      height: "100%",
+      background: "#111827",
+      borderLeft: "1px solid #2a3a52",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      flexShrink: 0,
+    }}>
+      {/* Tab bar */}
+      <div style={{
+        display: "flex",
+        borderBottom: "1px solid #2a3a52",
+        background: "#0f172a",
+        flexShrink: 0,
+      }}>
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              flex: 1,
+              padding: "10px 4px",
+              background: activeTab === tab.id ? "#111827" : "transparent",
+              border: "none",
+              borderBottom: activeTab === tab.id ? "2px solid #22d3ee" : "2px solid transparent",
+              color: activeTab === tab.id ? "#22d3ee" : "#64748b",
+              fontFamily: "monospace",
+              fontSize: 10,
+              fontWeight: activeTab === tab.id ? 700 : 400,
+              cursor: "pointer",
+              transition: "all 0.15s",
+              position: "relative",
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            {tab.label}
+            {tab.id === "chat" && chatCount > 0 && (
+              <span style={{
+                position: "absolute",
+                top: 4,
+                right: 4,
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#34d399",
+              }} />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div style={{ flex: 1, overflow: "hidden" }}>
+        {activeTab === "overview" && (
+          <OverviewTab
+            agents={agents}
+            selectedAgent={selectedAgent}
+            logs={logs}
+            onSelectAgent={onSelectAgent}
+          />
+        )}
+        {activeTab === "chat" && (
+          <ChatPanel messages={chatMessages} />
+        )}
+        {activeTab === "skills" && (
+          <SkillsPanel selectedAgent={selectedAgent} agents={agents} />
+        )}
+        {activeTab === "wallet" && (
+          <WalletPanel
+            agents={agents}
+            selectedAgent={selectedAgent}
+            transactions={transactions}
+            onUpdateAgent={onUpdateAgent}
+            onAddTransaction={onAddTransaction}
+          />
+        )}
       </div>
     </div>
   )
