@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import type { Agent, Building } from '@/lib/vendimia-types';
 import { AgentSprite } from './agent-sprite';
+import { BarrelObject, GrapeCrate, WineBottles, HorseCartSprite } from './sprites';
 
 interface GameWorldProps {
   agents: Agent[];
@@ -112,15 +113,32 @@ export function GameWorld({ agents, buildings, selectedAgent, onAgentClick }: Ga
           <FestivalStand />
         </div>
 
-        {/* Decorative elements */}
-        <WineBarrels className="absolute left-[30%] top-[58%]" count={4} />
-        <WineBarrels className="absolute right-[28%] top-[48%]" count={3} />
-        <GrapeCart className="absolute left-[18%] top-[38%]" />
-        <GrapeCart className="absolute right-[12%] top-[65%]" />
-        <WoodenBench className="absolute left-[38%] top-[72%]" />
-        <WoodenBench className="absolute right-[35%] top-[75%]" />
-        <TreeDecoration className="absolute left-[42%] top-[62%]" />
-        <TreeDecoration className="absolute right-[42%] top-[65%]" />
+        {/* Decorative elements using SVG sprites */}
+        <div className="absolute left-[30%] top-[58%] flex gap-1">
+          <BarrelObject size={28} />
+          <BarrelObject size={28} />
+          <BarrelObject size={28} />
+        </div>
+        <div className="absolute right-[28%] top-[48%] flex gap-1">
+          <BarrelObject size={24} />
+          <BarrelObject size={24} />
+        </div>
+        <div className="absolute left-[18%] top-[38%]">
+          <HorseCartSprite size={70} />
+        </div>
+        <div className="absolute right-[12%] top-[65%]">
+          <GrapeCrate size={28} />
+        </div>
+        <div className="absolute left-[38%] top-[72%]">
+          <GrapeCrate size={24} />
+        </div>
+        <div className="absolute right-[35%] top-[58%] flex gap-0.5">
+          <WineBottles size={24} />
+        </div>
+        <WoodenBench className="absolute left-[42%] top-[75%]" />
+        <WoodenBench className="absolute right-[40%] top-[78%]" />
+        <TreeDecoration className="absolute left-[44%] top-[62%]" />
+        <TreeDecoration className="absolute right-[44%] top-[58%]" />
       </div>
 
       {/* Agents */}

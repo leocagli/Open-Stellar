@@ -10,12 +10,10 @@ import { AgentsSidebar } from './agents-sidebar';
 import { Toolbar } from './toolbar';
 import { TopBar } from './top-bar';
 
-// Unique ID counter for messages
-let messageIdCounter = 100;
-
 export function VendimiaWorld() {
   const [agents, setAgents] = useState<Agent[]>(initialAgents);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const messageIdRef = useRef(100);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [day, setDay] = useState(1);
@@ -24,19 +22,27 @@ export function VendimiaWorld() {
 
   // Simulate agent progress
   useEffect(() => {
+    const completedAgentsRef = new Set<string>();
+    
     const interval = setInterval(() => {
       setAgents(prevAgents => 
         prevAgents.map(agent => {
           const newProgress = agent.progress + Math.random() * 3;
           
-          if (newProgress >= 100) {
+          if (newProgress >= 100 && !completedAgentsRef.has(agent.id)) {
+            completedAgentsRef.add(agent.id);
             // Task completed - add message and reset
             const taskInfo = taskLabels[agent.task];
-            addMessage({
-              agentName: agent.name,
-              message: `${taskInfo.label} completada!`,
-              type: 'celebration'
-            });
+            
+            // Schedule message for next tick to avoid batching issues
+            setTimeout(() => {
+              addMessage({
+                agentName: agent.name,
+                message: `${taskInfo.label} completada!`,
+                type: 'celebration'
+              });
+              completedAgentsRef.delete(agent.id);
+            }, 0);
             
             // Add grapes
             setTotalGrapes(prev => prev + Math.floor(Math.random() * 500 + 200));
@@ -54,7 +60,7 @@ export function VendimiaWorld() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [addMessage]);
 
   // Simulate day passing
   useEffect(() => {
@@ -62,18 +68,20 @@ export function VendimiaWorld() {
       setDay(prev => {
         const newDay = prev + 1;
         if (newDay % 7 === 0) {
-          addMessage({
-            agentName: 'Sistema',
-            message: celebrationMessages[Math.floor(Math.random() * celebrationMessages.length)],
-            type: 'celebration'
-          });
+          setTimeout(() => {
+            addMessage({
+              agentName: 'Sistema',
+              message: celebrationMessages[Math.floor(Math.random() * celebrationMessages.length)],
+              type: 'celebration'
+            });
+          }, 0);
         }
         return newDay;
       });
     }, 30000);
 
     return () => clearInterval(dayInterval);
-  }, []);
+  }, [addMessage]);
 
   // Move agents randomly
   useEffect(() => {
@@ -96,10 +104,11 @@ export function VendimiaWorld() {
   };
 
   const addMessage = useCallback((msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
-    messageIdCounter++;
+    messageIdRef.current += 1;
+    const uniqueId = `msg-${messageIdRef.current}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newMessage: ChatMessage = {
       ...msg,
-      id: `msg-${messageIdCounter}-${Date.now()}`,
+      id: uniqueId,
       timestamp: new Date()
     };
     setMessages(prev => [...prev.slice(-20), newMessage]);

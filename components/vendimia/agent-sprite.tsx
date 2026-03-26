@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import type { Agent } from '@/lib/vendimia-types';
-import { taskLabels } from '@/lib/vendimia-data';
+import { WorkerSprite, TaskLabel } from './sprites';
 
 interface AgentSpriteProps {
   agent: Agent;
@@ -10,43 +10,15 @@ interface AgentSpriteProps {
   isSelected?: boolean;
 }
 
-// Pixel art style task icons using CSS
-function TaskIcon({ task }: { task: string }) {
-  const iconStyles: Record<string, { bg: string; icon: string }> = {
-    cosecha: { bg: '#8b5cf6', icon: '🍇' },
-    riego: { bg: '#3b82f6', icon: '💧' },
-    poda: { bg: '#f59e0b', icon: '✂️' },
-    fermentacion: { bg: '#ef4444', icon: '🧪' },
-    embotellado: { bg: '#10b981', icon: '🍾' },
-    cata: { bg: '#ec4899', icon: '🍷' },
-  };
-  
-  const style = iconStyles[task] || iconStyles.cosecha;
-  
-  return (
-    <div 
-      className="w-5 h-5 flex items-center justify-center text-xs"
-      style={{ 
-        backgroundColor: style.bg,
-        boxShadow: `2px 2px 0 rgba(0,0,0,0.3)`,
-        imageRendering: 'pixelated'
-      }}
-    >
-      {style.icon}
-    </div>
-  );
-}
-
 export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
-  const taskInfo = taskLabels[agent.task];
-  
   return (
     <motion.div
       className="absolute cursor-pointer group"
       style={{ 
         left: `${agent.x}%`, 
         top: `${agent.y}%`,
-        transform: 'translate(-50%, -50%)'
+        transform: 'translate(-50%, -50%)',
+        zIndex: isSelected ? 20 : 10
       }}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ 
@@ -61,113 +33,51 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
       whileHover={{ scale: 1.05 }}
       onClick={onClick}
     >
-      {/* Task Label - Pixel art style bubble */}
+      {/* Task Label - Using pixel art SVG icons */}
       <motion.div 
-        className="absolute -top-14 left-1/2 -translate-x-1/2 whitespace-nowrap z-20"
+        className="absolute -top-16 left-1/2 -translate-x-1/2 whitespace-nowrap z-20"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <div 
-          className="relative px-2 py-1"
-          style={{
-            backgroundColor: '#f5f0e1',
-            border: '2px solid #4a3728',
-            boxShadow: '3px 3px 0 rgba(0,0,0,0.25)',
-            imageRendering: 'pixelated'
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <TaskIcon task={agent.task} />
-            <span 
-              className="text-sm font-bold"
-              style={{ 
-                fontFamily: 'var(--font-vt323)',
-                color: '#4a3728',
-                letterSpacing: '0.5px'
-              }}
-            >
-              {taskInfo.label}
-            </span>
-          </div>
-          {/* Progress Bar - Pixel style */}
-          <div 
-            className="mt-1.5 h-3 overflow-hidden"
-            style={{
-              backgroundColor: '#d4c9b5',
-              border: '1px solid #8b7355'
-            }}
-          >
-            <motion.div 
-              className="h-full"
-              style={{ 
-                backgroundColor: '#4ade80',
-                boxShadow: 'inset 0 -1px 0 rgba(0,0,0,0.2)'
-              }}
-              initial={{ width: 0 }}
-              animate={{ width: `${agent.progress}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-            />
-          </div>
-        </div>
+        <TaskLabel task={agent.task} progress={agent.progress} />
         {/* Pixel arrow pointing down */}
         <div 
-          className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0"
+          className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-0 h-0"
           style={{
-            borderLeft: '6px solid transparent',
-            borderRight: '6px solid transparent',
-            borderTop: '6px solid #4a3728'
+            borderLeft: '5px solid transparent',
+            borderRight: '5px solid transparent',
+            borderTop: '5px solid #4a3728'
           }}
         />
       </motion.div>
 
-      {/* Agent Avatar - Pixel art style */}
-      <div 
-        className={`
-          relative w-10 h-12 flex flex-col items-center justify-end
-          ${isSelected ? 'brightness-110' : ''}
-        `}
+      {/* Agent Avatar - Pixel art SVG worker */}
+      <motion.div 
+        className="relative"
+        animate={isSelected ? {
+          filter: ['drop-shadow(0 0 4px #ffd700)', 'drop-shadow(0 0 8px #ffd700)', 'drop-shadow(0 0 4px #ffd700)']
+        } : {}}
+        transition={{ duration: 1, repeat: Infinity }}
       >
-        {/* Head */}
-        <div 
-          className="w-8 h-8 relative"
-          style={{
-            backgroundColor: agent.skinColor || '#e8c39e',
-            border: '2px solid #4a3728',
-            boxShadow: '2px 2px 0 rgba(0,0,0,0.2)'
-          }}
-        >
-          {/* Hair */}
-          <div 
-            className="absolute -top-1 left-0 right-0 h-2"
-            style={{ backgroundColor: agent.hairColor || '#5c4033' }}
-          />
-          {/* Eyes */}
-          <div className="absolute top-3 left-1 w-1.5 h-1.5 bg-black" />
-          <div className="absolute top-3 right-1 w-1.5 h-1.5 bg-black" />
-        </div>
-        
-        {/* Body */}
-        <div 
-          className="w-10 h-6 -mt-1"
-          style={{
-            backgroundColor: agent.shirtColor || '#6366f1',
-            border: '2px solid #4a3728',
-            borderTop: 'none',
-            boxShadow: '2px 2px 0 rgba(0,0,0,0.2)'
-          }}
+        <WorkerSprite
+          skinColor={agent.skinColor || '#e8c39e'}
+          hairColor={agent.hairColor || '#5c3d2e'}
+          shirtColor={agent.shirtColor || '#4a6fa5'}
+          size={44}
+          isWorking={agent.task === 'cosecha' || agent.task === 'poda' || agent.task === 'riego'}
         />
         
-        {/* Selection ring */}
+        {/* Selection indicator */}
         {isSelected && (
           <motion.div
-            className="absolute -inset-1 border-2 border-primary"
-            animate={{ opacity: [0.5, 1, 0.5] }}
+            className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-2 rounded-full"
+            style={{ backgroundColor: 'rgba(255, 215, 0, 0.6)' }}
+            animate={{ opacity: [0.4, 0.8, 0.4], scale: [0.9, 1.1, 0.9] }}
             transition={{ duration: 1, repeat: Infinity }}
-            style={{ boxShadow: '0 0 8px rgba(139, 92, 246, 0.5)' }}
           />
         )}
-      </div>
+      </motion.div>
 
       {/* Name tooltip on hover */}
       <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -175,8 +85,9 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
           className="text-sm px-2 py-0.5 whitespace-nowrap"
           style={{ 
             fontFamily: 'var(--font-vt323)',
-            backgroundColor: '#4a3728',
+            backgroundColor: '#2a1f18',
             color: '#f5f0e1',
+            border: '1px solid #4a3728',
             boxShadow: '2px 2px 0 rgba(0,0,0,0.3)'
           }}
         >

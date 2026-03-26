@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { GrapeIcon, BoxIcon, BookIcon, ShirtIcon, GearIcon, MenuIcon } from './sprites';
 
 interface ToolbarProps {
   onToolSelect: (tool: string) => void;
@@ -8,11 +9,12 @@ interface ToolbarProps {
 }
 
 const tools = [
-  { id: 'grape', icon: '🍇', label: 'Uvas' },
-  { id: 'book', icon: '📕', label: 'Manual' },
-  { id: 'shirt', icon: '👕', label: 'Equipar' },
-  { id: 'settings', icon: '⚙️', label: 'Config' },
-  { id: 'menu', icon: '☰', label: 'Menu' },
+  { id: 'grape', Icon: GrapeIcon, label: 'Uvas' },
+  { id: 'box', Icon: BoxIcon, label: 'Inventario' },
+  { id: 'book', Icon: BookIcon, label: 'Manual' },
+  { id: 'shirt', Icon: ShirtIcon, label: 'Equipar' },
+  { id: 'settings', Icon: GearIcon, label: 'Config' },
+  { id: 'menu', Icon: MenuIcon, label: 'Menu' },
 ];
 
 export function Toolbar({ onToolSelect, activeTool }: ToolbarProps) {
@@ -43,7 +45,7 @@ export function Toolbar({ onToolSelect, activeTool }: ToolbarProps) {
             whileTap={{ scale: 0.95 }}
           >
             <div
-              className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center text-lg md:text-xl transition-all"
+              className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center transition-all"
               style={{
                 backgroundColor: activeTool === tool.id ? '#5a4a3a' : '#4a3f38',
                 border: '2px solid #2a1f18',
@@ -52,9 +54,7 @@ export function Toolbar({ onToolSelect, activeTool }: ToolbarProps) {
                   : '2px 2px 0 rgba(0,0,0,0.2)'
               }}
             >
-              <span style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,0.3))' }}>
-                {tool.icon}
-              </span>
+              <tool.Icon size={24} />
             </div>
             
             {/* Tooltip */}

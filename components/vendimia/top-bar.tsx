@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { GrapeIcon } from './sprites';
 
 interface TopBarProps {
   season: string;
@@ -26,7 +27,7 @@ export function TopBar({ season, day, totalGrapes }: TopBarProps) {
             boxShadow: '3px 3px 0 rgba(0,0,0,0.3)'
           }}
         >
-          <span className="text-xl">🍇</span>
+          <GrapeIcon size={20} />
           <span 
             className="text-xs md:text-sm font-bold tracking-wider"
             style={{ 
@@ -68,7 +69,7 @@ export function TopBar({ season, day, totalGrapes }: TopBarProps) {
               boxShadow: '2px 2px 0 rgba(0,0,0,0.2)'
             }}
           >
-            <span className="text-sm">🍇</span>
+            <GrapeIcon size={14} />
             <span 
               className="text-xs font-bold"
               style={{ fontFamily: 'var(--font-vt323)', color: '#7c3aed' }}
