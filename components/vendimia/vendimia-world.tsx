@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Agent, ChatMessage } from '@/lib/vendimia-types';
 import { initialAgents, buildings, initialMessages, celebrationMessages, taskLabels } from '@/lib/vendimia-data';
@@ -42,9 +42,9 @@ export function VendimiaWorld() {
   };
 
   // Stable wrapper function that uses the ref
-  const addMessage = useCallback((msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+  const addMessage = (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
     addMessageRef.current(msg);
-  }, []);
+  };
 
   // Simulate agent progress
   useEffect(() => {

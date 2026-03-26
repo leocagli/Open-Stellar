@@ -26,11 +26,12 @@ export const taskLabels: Record<string, { label: string; icon: string }> = {
   descanso: { label: 'Descanso', icon: '😴' },
 };
 
+// Use static IDs to avoid hydration issues
 export const initialMessages: ChatMessage[] = [
-  { id: 'init-1', agentName: 'Sistema', message: 'Bienvenidos a Vendimia World!', timestamp: new Date(Date.now() - 4000), type: 'celebration' },
-  { id: 'init-2', agentName: 'Valentina', message: 'Cosecha Malbec al 75%', timestamp: new Date(Date.now() - 3000), type: 'task' },
-  { id: 'init-3', agentName: 'Lucia', message: 'Fermentacion casi lista', timestamp: new Date(Date.now() - 2000), type: 'info' },
-  { id: 'init-4', agentName: 'Sistema', message: 'Agentes IA sincronizados', timestamp: new Date(Date.now() - 1000), type: 'info' },
+  { id: 'welcome-msg-001', agentName: 'Sistema', message: 'Bienvenidos a Vendimia World!', timestamp: new Date('2024-03-01T10:00:00'), type: 'celebration' },
+  { id: 'welcome-msg-002', agentName: 'Valentina', message: 'Cosecha Malbec al 75%', timestamp: new Date('2024-03-01T10:00:01'), type: 'task' },
+  { id: 'welcome-msg-003', agentName: 'Lucia', message: 'Fermentacion casi lista', timestamp: new Date('2024-03-01T10:00:02'), type: 'info' },
+  { id: 'welcome-msg-004', agentName: 'Sistema', message: 'Agentes IA sincronizados', timestamp: new Date('2024-03-01T10:00:03'), type: 'info' },
 ];
 
 export const celebrationMessages = [
