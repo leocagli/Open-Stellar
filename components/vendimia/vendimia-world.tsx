@@ -10,6 +10,12 @@ import { AgentsSidebar } from './agents-sidebar';
 import { Toolbar } from './toolbar';
 import { TopBar } from './top-bar';
 
+const TASKS = ['cosecha', 'riego', 'poda', 'fermentacion', 'embotellado', 'cata'] as const;
+
+function getRandomTask() {
+  return TASKS[Math.floor(Math.random() * TASKS.length)];
+}
+
 export function VendimiaWorld() {
   const [agents, setAgents] = useState<Agent[]>(initialAgents);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
@@ -19,6 +25,26 @@ export function VendimiaWorld() {
   const [day, setDay] = useState(1);
   const [totalGrapes, setTotalGrapes] = useState(12450);
   const [showWelcome, setShowWelcome] = useState(true);
+
+  // Use a stable ref for addMessage to avoid dependency issues
+  const addMessageRef = useRef<(msg: Omit<ChatMessage, 'id' | 'timestamp'>) => void>(() => {});
+  
+  // Update the ref with the actual function
+  addMessageRef.current = (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+    messageIdRef.current += 1;
+    const uniqueId = `msg-${messageIdRef.current}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const newMessage: ChatMessage = {
+      ...msg,
+      id: uniqueId,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev.slice(-20), newMessage]);
+  };
+
+  // Stable wrapper function that uses the ref
+  const addMessage = useCallback((msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+    addMessageRef.current(msg);
+  }, []);
 
   // Simulate agent progress
   useEffect(() => {
@@ -31,12 +57,10 @@ export function VendimiaWorld() {
           
           if (newProgress >= 100 && !completedAgentsRef.has(agent.id)) {
             completedAgentsRef.add(agent.id);
-            // Task completed - add message and reset
             const taskInfo = taskLabels[agent.task];
             
-            // Schedule message for next tick to avoid batching issues
             setTimeout(() => {
-              addMessage({
+              addMessageRef.current({
                 agentName: agent.name,
                 message: `${taskInfo.label} completada!`,
                 type: 'celebration'
@@ -44,7 +68,6 @@ export function VendimiaWorld() {
               completedAgentsRef.delete(agent.id);
             }, 0);
             
-            // Add grapes
             setTotalGrapes(prev => prev + Math.floor(Math.random() * 500 + 200));
             
             return {
@@ -60,7 +83,7 @@ export function VendimiaWorld() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [addMessage]);
+  }, []);
 
   // Simulate day passing
   useEffect(() => {
@@ -69,7 +92,7 @@ export function VendimiaWorld() {
         const newDay = prev + 1;
         if (newDay % 7 === 0) {
           setTimeout(() => {
-            addMessage({
+            addMessageRef.current({
               agentName: 'Sistema',
               message: celebrationMessages[Math.floor(Math.random() * celebrationMessages.length)],
               type: 'celebration'
@@ -81,7 +104,7 @@ export function VendimiaWorld() {
     }, 30000);
 
     return () => clearInterval(dayInterval);
-  }, [addMessage]);
+  }, []);
 
   // Move agents randomly
   useEffect(() => {
@@ -96,22 +119,6 @@ export function VendimiaWorld() {
     }, 5000);
 
     return () => clearInterval(moveInterval);
-  }, []);
-
-  const getRandomTask = () => {
-    const tasks = ['cosecha', 'riego', 'poda', 'fermentacion', 'embotellado', 'cata'] as const;
-    return tasks[Math.floor(Math.random() * tasks.length)];
-  };
-
-  const addMessage = useCallback((msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
-    messageIdRef.current += 1;
-    const uniqueId = `msg-${messageIdRef.current}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const newMessage: ChatMessage = {
-      ...msg,
-      id: uniqueId,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev.slice(-20), newMessage]);
   }, []);
 
   const handleAgentClick = (agent: Agent) => {

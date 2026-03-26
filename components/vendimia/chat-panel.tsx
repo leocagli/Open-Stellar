@@ -78,7 +78,7 @@ export function ChatPanel({ messages, onSendMessage }: ChatPanelProps) {
               >
                 {messages.slice(-10).map((msg, index) => (
                   <motion.div
-                    key={msg.id}
+                    key={`chat-msg-${msg.id}-${index}`}
                     initial={{ x: -10, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: index * 0.03 }}

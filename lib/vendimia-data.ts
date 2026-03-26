@@ -27,10 +27,10 @@ export const taskLabels: Record<string, { label: string; icon: string }> = {
 };
 
 export const initialMessages: ChatMessage[] = [
-  { id: '1', agentName: 'Sistema', message: '¡Bienvenidos a Vendimia World!', timestamp: new Date(), type: 'celebration' },
-  { id: '2', agentName: 'Valentina', message: 'Cosecha Malbec al 75%', timestamp: new Date(), type: 'task' },
-  { id: '3', agentName: 'Lucía', message: 'Fermentación casi lista', timestamp: new Date(), type: 'info' },
-  { id: '4', agentName: 'Sistema', message: 'Agentes IA sincronizados', timestamp: new Date(), type: 'info' },
+  { id: 'init-1', agentName: 'Sistema', message: 'Bienvenidos a Vendimia World!', timestamp: new Date(Date.now() - 4000), type: 'celebration' },
+  { id: 'init-2', agentName: 'Valentina', message: 'Cosecha Malbec al 75%', timestamp: new Date(Date.now() - 3000), type: 'task' },
+  { id: 'init-3', agentName: 'Lucia', message: 'Fermentacion casi lista', timestamp: new Date(Date.now() - 2000), type: 'info' },
+  { id: 'init-4', agentName: 'Sistema', message: 'Agentes IA sincronizados', timestamp: new Date(Date.now() - 1000), type: 'info' },
 ];
 
 export const celebrationMessages = [
