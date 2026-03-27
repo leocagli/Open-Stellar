@@ -12,12 +12,19 @@ interface AgentSpriteProps {
   isSelected?: boolean;
 }
 
-// Sprite direccional para Valentina (agente id: 1)
+// Sprites direccionales para agentes con imagen
 const VALENTINA_SPRITES = {
   front: '/sprites/worker-front.png',
   back: '/sprites/worker-back.png',
   left: '/sprites/worker-left.png',
   right: '/sprites/worker-right.png',
+};
+
+const CAMILA_SPRITES = {
+  front: '/sprites/camila-front.png',
+  back: '/sprites/camila-back.png',
+  left: '/sprites/camila-left.png',
+  right: '/sprites/camila-right.png',
 };
 
 export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
@@ -32,9 +39,9 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Cambiar direccion aleatoriamente para Valentina
+  // Cambiar direccion aleatoriamente para Valentina y Camila
   useEffect(() => {
-    if (agent.id === '1') {
+    if (agent.id === '1' || agent.id === '3') {
       const dirInterval = setInterval(() => {
         const dirs: Array<'front' | 'back' | 'left' | 'right'> = ['front', 'back', 'left', 'right'];
         setDirection(dirs[Math.floor(Math.random() * dirs.length)]);
@@ -59,11 +66,32 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
     );
   }
 
+  // Sprite de imagen para Camila (id: 3)
+  function getCamilaSprite() {
+    return (
+      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+        <Image
+          src={CAMILA_SPRITES[direction]}
+          alt="Camila"
+          fill
+          className="object-contain"
+          style={{ imageRendering: 'pixelated' }}
+          priority
+        />
+      </div>
+    );
+  }
+
   // Select sprite based on task (para otros agentes)
   function getWorkerSprite() {
     // Si es Valentina, usar el sprite de imagen
     if (agent.id === '1') {
       return getValentinaSprite();
+    }
+
+    // Si es Camila, usar el sprite de imagen
+    if (agent.id === '3') {
+      return getCamilaSprite();
     }
 
     const commonProps = {
