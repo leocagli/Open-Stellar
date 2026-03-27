@@ -293,59 +293,21 @@ export function WalletButton() {
               
               {walletState.stellar.connected && walletState.stellar.publicKey ? (
                 <div className="flex items-center justify-between gap-2">
-                  <span 
-                    className="text-xs truncate"
-                    style={{ fontFamily: 'var(--font-vt323)', color: '#666' }}
-                  >
+                  <span className="text-xs truncate" style={{ fontFamily: 'var(--font-vt323)', color: '#666' }}>
                     {formatAddress(walletState.stellar.publicKey)}
                   </span>
-                  <PixelButton 
-                    onClick={handleDisconnectStellar}
-                    variant="danger"
-                    small
-                  >
+                  <PixelButton onClick={handleDisconnectStellar} variant="danger" small>
                     X
                   </PixelButton>
                 </div>
               ) : (
-                <PixelButton
-                  onClick={handleConnectStellar}
-                  disabled={isConnecting === 'stellar'}
-                  variant="stellar"
-                  fullWidth
-                >
+                <PixelButton onClick={handleConnectStellar} disabled={isConnecting === 'stellar'} variant="stellar" fullWidth>
                   {isConnecting === 'stellar' ? 'Conectando...' : 'Freighter'}
                 </PixelButton>
-              
-              <a 
-                href="https://www.freighter.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-xs mt-2 text-center"
-                style={{ 
-                  fontFamily: 'var(--font-vt323)', 
-                  color: freighterAvailable ? '#2d5a27' : '#8b2942',
-                  textDecoration: 'underline'
-                }}
-              >
+              )}
+              <a href="https://www.freighter.app/" target="_blank" rel="noopener noreferrer" className="block text-xs mt-2 text-center" style={{ fontFamily: 'var(--font-vt323)', color: freighterAvailable ? '#2d5a27' : '#8b2942', textDecoration: 'underline' }}>
                 {freighterAvailable ? 'Freighter Detectado' : 'Descargar Freighter'}
               </a>
-              
-              {!freighterAvailable && (
-                <a 
-                  href="https://www.freighter.app/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-xs mt-2 text-center"
-                  style={{ 
-                    fontFamily: 'var(--font-vt323)', 
-                    color: '#8b2942',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Descargar Extension
-                </a>
-              )}
             </div>
           </motion.div>
         )}
