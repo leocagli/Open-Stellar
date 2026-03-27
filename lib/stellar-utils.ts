@@ -60,10 +60,6 @@ export const STELLAR_MAINNET = {
 
 export type StellarNetwork = 'TESTNET' | 'PUBLIC'
 
-function validateStellarAddress(address: string): boolean {
-  return StrKey.isValidEd25519PublicKey(address)
-}
-
 // Check if Freighter extension is installed
 export async function isFreighterInstalled(): Promise<boolean> {
   try {

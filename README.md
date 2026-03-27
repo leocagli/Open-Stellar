@@ -1,250 +1,166 @@
-# Open Vinito / Open Stellar
+# Open Vinito - Multi-Chain DApp (BNB + Stellar)
 
-Plataforma multi-chain con frontend v0 integrado, wallets Web3 conectadas con wagmi + WalletConnect + viem, flujo Stellar/Freighter, contratos de escrow, y capa de protocolos para x402 y track 8004 (con fallback de reputacion en Stellar).
+Aplicacion Web3 con interfaz interactiva que conecta dos tracks blockchain:
 
-## Estado actual
+- Track BNB (EVM) con MetaMask
+- Track Stellar con Freighter
 
-- Frontend integrado en dos vistas activas:
-  - Vendimia v0
-  - Open-Stellar v0
-- Conectividad Web3:
-  - BNB: MetaMask (injected) + WalletConnect (QR)
-  - Stellar: Freighter
-- Transacciones:
-  - BNB nativa en testnet
-  - XLM en Stellar testnet
-- Protocolos:
-  - x402 implementado en capa API y utilidades
-  - track 8004 con deteccion y fallback a reputacion en Stellar
-- Contratos:
-  - EscrowMilestone.sol
-  - X402ServicePaywall.sol
-  - Base escrow Soroban (Rust)
+El objetivo es ofrecer una base clara para construir flujos multi-chain, ejecutar transacciones reales y sumar una capa de agentes AI para automatizacion, analisis y soporte operativo.
 
-## Integracion Frontend + Web3 + Agentes
+## Que resuelve este proyecto
 
-### 1. Frontend v0 integrado
+- Conexion de wallets en dos ecosistemas distintos (EVM y Stellar)
+- Validacion de red testnet y feedback en UI
+- Envio real de transacciones BNB y XLM
+- Base para integrar agentes con distintos modelos LLM y skills orientadas a servicios
 
-Archivo principal de entrada:
+## Stack tecnico
 
-- app/page.tsx
+- Next.js + React + TypeScript
+- Tailwind CSS + componentes UI
+- wagmi + viem para track EVM (BNB)
+- @stellar/freighter-api + @stellar/stellar-sdk para track Stellar
 
-Selector de vistas:
+## Arquitectura general
 
-- Vendimia v0: simulacion tipo mundo/agentes
-- Open-Stellar v0: mapa de ciudad + panel lateral operativo
+1. Frontend
+- Renderiza estado de conexion, red y acciones de transaccion.
+- Expone controles para cada track (BNB y Stellar).
 
-Componente de integracion:
+2. Capa Web3
+- Track BNB: usa wagmi/viem para conectar MetaMask, cambiar red y enviar transacciones EVM.
+- Track Stellar: usa Freighter SDK para firma y Stellar SDK para construir/enviar transacciones via Horizon.
 
-- components/integrated-home.tsx
+3. Capa de Agentes AI (extensible)
+- Orquesta flujos inteligentes sobre datos y acciones Web3.
+- Puede usar diferentes modelos LLM segun tarea y costo/latencia.
+- Puede cargar skills especializadas como servicios reutilizables.
 
-Componente Open-Stellar:
+## Guia de integracion: Front + Web3 + Agentes
 
-- components/open-stellar/open-stellar-hub.tsx
+### 1) Flujo base en Frontend
 
-### 2. Capa Web3
+- El usuario conecta wallet desde la UI.
+- La UI valida red activa.
+- El usuario carga destino y monto.
+- Se firma y envia transaccion.
+- La UI muestra hash y estado.
 
-#### Track BNB (EVM)
+### 2) Track BNB (EVM)
 
-- Stack: wagmi + viem
-- Conectores activos:
-  - injected (MetaMask)
-  - walletConnect (si NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID existe)
-- Red objetivo: BNB Smart Chain Testnet (chain 97)
-- Envio transacciones: useSendTransaction + waitForTransactionReceipt
+Que hace:
+- Conexion con MetaMask por injected connector.
+- Deteccion de chain id y switch a BNB Testnet (97).
+- Envio de transaccion nativa BNB.
 
-Archivos:
+Que puede hacer un agente sobre este track:
+- Verificador previo de riesgo (monto, destino, gas estimado).
+- Monitor de confirmaciones y alertas de timeout/revert.
+- Clasificador de actividad (pagos, pruebas QA, operaciones repetidas).
 
-- lib/wallet-config.ts
-- components/wallet/wallet-button.tsx
-- components/wallet/transaction-panel.tsx
+### 3) Track Stellar
 
-#### Track Stellar
+Que hace:
+- Conexion con Freighter.
+- Verificacion de red Test SDF Network.
+- Construccion de transaccion con Stellar SDK.
+- Firma con Freighter y submit por Horizon.
 
-- Stack: @stellar/freighter-api + @stellar/stellar-sdk
-- Wallet: Freighter
-- Red objetivo: Test SDF Network
-- Envio transacciones: TransactionBuilder + signTransaction + Horizon submit
+Que puede hacer un agente sobre este track:
+- Validacion de direccion destino y memo rules.
+- Supervisar secuencia de cuenta y reintentos controlados.
+- Alertar por falla de firma, red incorrecta o saldo insuficiente.
 
-Archivos:
+### 4) Capa de agentes con multiples LLM
 
-- lib/stellar-utils.ts
-- components/wallet/wallet-button.tsx
-- components/wallet/transaction-panel.tsx
-- app/api/stellar/*
+Patron recomendado:
+- Agente Router: decide que modelo usar por tipo de tarea.
+- Agentes Especialistas: uno para EVM, otro para Stellar, otro para UX/soporte.
+- Skills como herramientas: cada skill encapsula una capacidad concreta.
 
-### 3. Capa de Agentes
+Ejemplo de reparto de modelos:
+- Modelo rapido/economico: clasificacion, parsing, validaciones simples.
+- Modelo avanzado: razonamiento complejo, planes de ejecucion multi-step, troubleshooting.
 
-Puede operar con modelos LLM distintos segun carga y complejidad:
+### 5) Skills como servicios
 
-- Router Agent (clasifica tarea)
-- Specialist EVM Agent
-- Specialist Stellar Agent
-- Ops/Support Agent
+Una skill puede comportarse como micro-servicio de alto nivel.
+Ejemplos utiles:
 
-Skills recomendadas como servicios:
+- Skill Risk Guard
+   - Entrada: wallet, destino, monto, red
+   - Salida: score de riesgo y recomendaciones
 
-- Risk Guard: analiza riesgo pre-transaccion
-- Tx Explainer: explica resultado on-chain
-- Policy Checker: valida reglas de entorno
-- Ops Assistant: diagnostica errores wallet/RPC
+- Skill Tx Explainer
+   - Entrada: hash y red
+   - Salida: explicacion legible de lo que ocurrio on-chain
 
-## x402 y track 8004
+- Skill Policy Checker
+   - Entrada: accion propuesta por usuario/agente
+   - Salida: aprobada/rechazada segun reglas del proyecto
 
-### x402
-
-Implementacion en:
-
-- lib/protocols/x402.ts
-- app/api/protocol/x402/quote/route.ts
-- app/api/protocol/x402/settle/route.ts
-
-Flujo:
-
-1. Cliente pide quote x402 (respuesta tipo code 402)
-2. Cliente paga on-chain
-3. Cliente envia evidencia de settlement
-4. Sistema emite receipt
-
-### track 8004 + fallback
-
-Implementacion en:
-
-- lib/protocols/track8004.ts
-- app/api/protocol/track8004/route.ts
-
-Regla:
-
-- Si no hay soporte 8004 en Stellar, el modo pasa automaticamente a reputation-fallback.
-
-Sistema de reputacion:
-
-- lib/reputation/reputation-store.ts
-- app/api/protocol/reputation/route.ts
-- contracts/stellar/REPUTATION_FALLBACK.md
-
-## Tecnologia de escrow
-
-### EVM
-
-- contracts/evm/EscrowMilestone.sol
-  - createDeal
-  - release
-  - refund
-  - raiseDispute
-
-- contracts/evm/X402ServicePaywall.sol
-  - settle402
-  - hasPaid
-  - withdraw
-
-### Stellar (Soroban base)
-
-- contracts/stellar/escrow/src/lib.rs
-  - create
-  - release
-  - dispute
-  - get
-
-Nota: el contrato Soroban es base funcional para evolucionar a transferencias tokenizadas/asset-based.
-
-## Refactor de estructura
-
-Nuevas carpetas agregadas:
-
-- components/open-stellar/
-- lib/protocols/
-- lib/reputation/
-- contracts/evm/
-- contracts/stellar/escrow/
-- app/api/protocol/
-
-Objetivo del refactor:
-
-- Separar UI, capa Web3, capa de protocolos y contratos
-- Facilitar mantenimiento por dominio funcional
+- Skill Ops Assistant
+   - Entrada: errores operativos de wallet/RPC
+   - Salida: pasos de resolucion y diagnostico
 
 ## Instalacion
 
-1. Clonar
+1. Clonar repositorio
 
 ```bash
 git clone https://github.com/leocagli/Open-Stellar.git
 cd Open-Stellar
 ```
 
-2. Dependencias
+2. Instalar dependencias
 
 ```bash
 pnpm install
 ```
 
-Si no tienes pnpm, puedes usar npm:
-
-```bash
-npm install
-```
-
-3. Variables de entorno
-
-Crear .env.local:
-
-```env
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=tu_project_id_walletconnect
-```
-
-4. Desarrollo
+3. Ejecutar en desarrollo
 
 ```bash
 pnpm dev
 ```
 
-## Chequeo y bugs
+## Configuracion de redes (testnet)
 
-Checklist aplicada en esta iteracion:
+### BNB Smart Chain Testnet
 
-- Revisada coherencia de conectores BNB en UI
-- Revisado fallback cuando WalletConnect no esta configurado
-- Revisado flujo Freighter y red testnet
-- Revisado tipado de nuevos endpoints protocol
-- Revisada integracion de ambas vistas frontend
+- Chain ID: 97
+- RPC: https://data-seed-prebsc-1-s1.binance.org:8545
+- Explorer: https://testnet.bscscan.com
 
-Comando recomendado de verificacion local:
+### Stellar Testnet
 
-```bash
-pnpm lint
-pnpm build
-```
+- Horizon: https://horizon-testnet.stellar.org
+- Soroban RPC: https://soroban-testnet.stellar.org
+- Passphrase: Test SDF Network ; September 2015
+- Explorer: https://stellar.expert/explorer/testnet
 
-Con npm:
+## Uso rapido
 
-```bash
-npm run lint
-npm run build
-```
+1. Conectar MetaMask y Freighter
+2. Confirmar que ambas wallets estan en testnet
+3. Abrir panel de transacciones
+4. Enviar BNB o XLM a direccion destino
+5. Revisar hash en explorer
 
-Si aparecen conflictos de node_modules en el panel de errores, ignorar y validar solo archivos del proyecto.
+## Estructura clave
 
-## Rutas API nuevas
+- app: layout y pagina principal
+- components/wallet: provider, boton wallet y panel de transacciones
+- lib/wallet-config.ts: configuracion wagmi para BNB
+- lib/stellar-utils.ts: utilidades Freighter y envio Stellar
+- lib/bnb-contracts.ts: helpers/ABIs para contratos EVM
 
-- POST /api/protocol/x402/quote
-- POST /api/protocol/x402/settle
-- GET /api/protocol/track8004?chain=stellar
-- GET /api/protocol/reputation?actorId=agent-1
-- POST /api/protocol/reputation
+## Roadmap sugerido
 
-## Deploy de contratos (EVM + Soroban)
-
-Guia extendida:
-
-- DEPLOY_GUIDE.md
-
-Scripts de ayuda:
-
-```bash
-npm run deploy:evm:guide
-npm run deploy:soroban:guide
-```
+- Agregar historial persistente de transacciones
+- Agregar simulacion pre-transaccion
+- Agregar agente de monitoreo en tiempo real
+- Agregar skill de cumplimiento/politicas por entorno
 
 ## Licencia
 

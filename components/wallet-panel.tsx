@@ -72,10 +72,9 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
         setFreighterAvailable(!!result)
         if (result) {
           try {
-            const pkResult: any = await freighter.getPublicKey()
-            const publicKey = typeof pkResult === "string" ? pkResult : pkResult?.publicKey
-            if (!cancelled && publicKey) {
-              setConnectedKey(publicKey)
+            const addr = await freighter.getAddress()
+            if (!cancelled && addr?.address) {
+              setConnectedKey(addr.address)
             }
           } catch {
             // Not yet authorized -- that's ok
@@ -96,10 +95,10 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
       const freighter = await getFreighter()
       if (!freighter) throw new Error("Freighter not found")
 
-      const accessResult: any = await freighter.requestAccess()
-      const publicKey = typeof accessResult === "string" ? accessResult : accessResult?.address || accessResult?.publicKey
-      if (publicKey) {
-        setConnectedKey(publicKey)
+      await freighter.setAllowed()
+      const addr = await freighter.getAddress()
+      if (addr?.address) {
+        setConnectedKey(addr.address)
       } else {
         throw new Error("Could not get address from Freighter")
       }
@@ -202,21 +201,12 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
       const freighter = await getFreighter()
       if (!freighter) throw new Error("Freighter not available")
 
-      const signResult: any = await freighter.signTransaction(buildData.xdr, {
+      const signResult = await freighter.signTransaction(buildData.xdr, {
         networkPassphrase: "Test SDF Network ; September 2015",
       })
 
-      // signResult can be { signedTxXdr: string } or a raw string
-      const signedXdr =
-        typeof signResult === "string"
-          ? signResult
-          : signResult && typeof signResult === "object" && "signedTxXdr" in signResult
-          ? (signResult.signedTxXdr as string)
-          : null
-
-      if (!signedXdr) {
-        throw new Error("Freighter did not return signed XDR")
-      }
+      // signResult can be { signedTxXdr: string } or a string
+      const signedXdr = typeof signResult === "string" ? signResult : signResult.signedTxXdr
 
       // Step 3: Submit signed transaction on the server
       const submitRes = await fetch("/api/stellar/submit-tx", {
