@@ -33,19 +33,33 @@ export function GameWorld({ agents, selectedAgent, onAgentClick, currentScene = 
   const backgroundImage = sceneBackgrounds[currentScene];
   const sceneLabel = sceneLabels[currentScene] || 'Vendimia World';
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
   // Track mouse position para parallax effect
   useEffect(() => {
+    // Set initial window size
+    setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+
     const handleMouseMove = (e: MouseEvent) => {
       setMousePos({ x: e.clientX, y: e.clientY });
     };
+
+    const handleResize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   // Parallax offset basado en mouse position (subtle)
-  const parallaxX = (mousePos.x - window.innerWidth / 2) * 0.02;
-  const parallaxY = (mousePos.y - window.innerHeight / 2) * 0.02;
+  // Solo calcular si el componente está montado en el cliente
+  const parallaxX = (typeof window !== 'undefined' && windowSize.width > 0) ? (mousePos.x - windowSize.width / 2) * 0.02 : 0;
+  const parallaxY = (typeof window !== 'undefined' && windowSize.height > 0) ? (mousePos.y - windowSize.height / 2) * 0.02 : 0;
 
   return (
     <div className="relative w-full h-full overflow-hidden">
