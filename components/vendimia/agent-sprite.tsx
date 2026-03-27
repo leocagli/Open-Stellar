@@ -10,6 +10,7 @@ interface AgentSpriteProps {
   agent: Agent;
   onClick?: () => void;
   isSelected?: boolean;
+  currentScene?: string;
 }
 
 // Sprites direccionales para agentes con imagen
@@ -76,7 +77,7 @@ const NPC010_SPRITES = {
   right: '/sprites/npc010-right.png',
 };
 
-export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
+export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-central' }: AgentSpriteProps) {
   const [walkFrame, setWalkFrame] = useState(0);
   const [direction, setDirection] = useState<'front' | 'back' | 'left' | 'right'>('front');
   const [offsetX, setOffsetX] = useState(0);
@@ -131,7 +132,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   // Sprite de imagen para Valentina (id: 1)
   function getValentinaSprite() {
     return (
-      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+      <div className="relative w-20 h-28" style={{ imageRendering: 'pixelated' }}>
         <Image
           src={VALENTINA_SPRITES[direction]}
           alt="Valentina"
@@ -147,7 +148,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   // Sprite de imagen para Camila (id: 3)
   function getCamilaSprite() {
     return (
-      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+      <div className="relative w-20 h-28" style={{ imageRendering: 'pixelated' }}>
         <Image
           src={CAMILA_SPRITES[direction]}
           alt="Camila"
@@ -163,7 +164,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   // Sprite de imagen para Vendedor/Fernando (id: 9)
   function getVendedorSprite() {
     return (
-      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+      <div className="relative w-20 h-28" style={{ imageRendering: 'pixelated' }}>
         <Image
           src={VENDEDOR_SPRITES[direction]}
           alt="Fernando"
@@ -179,7 +180,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   // Sprite de imagen para NPC005/Tomas (id: 11)
   function getNPC005Sprite() {
     return (
-      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+      <div className="relative w-20 h-28" style={{ imageRendering: 'pixelated' }}>
         <Image
           src={NPC005_SPRITES[direction]}
           alt="Tomas"
@@ -195,7 +196,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   // Sprite de imagen para NPC006/Santiago embotellado (id: 5)
   function getNPC006Sprite() {
     return (
-      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+      <div className="relative w-20 h-28" style={{ imageRendering: 'pixelated' }}>
         <Image
           src={NPC006_SPRITES[direction]}
           alt="Santiago"
@@ -211,7 +212,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   // Sprite de imagen para NPC007/Rosita sommelier cata (id: 8)
   function getNPC007Sprite() {
     return (
-      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+      <div className="relative w-20 h-28" style={{ imageRendering: 'pixelated' }}>
         <Image
           src={NPC007_SPRITES[direction]}
           alt="Rosita"
@@ -227,7 +228,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   // Sprite de imagen para NPC008/Pancho vendedor ambulante (id: 10)
   function getNPC008Sprite() {
     return (
-      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+      <div className="relative w-20 h-28" style={{ imageRendering: 'pixelated' }}>
         <Image
           src={NPC008_SPRITES[direction]}
           alt="Pancho"
@@ -243,7 +244,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   // Sprite de imagen para NPC009/Marta camarera atención (id: 12)
   function getNPC009Sprite() {
     return (
-      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+      <div className="relative w-20 h-28" style={{ imageRendering: 'pixelated' }}>
         <Image
           src={NPC009_SPRITES[direction]}
           alt="Marta"
@@ -259,7 +260,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   // Sprite de imagen para NPC010/Elena administrativa oficina (id: 13)
   function getNPC010Sprite() {
     return (
-      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+      <div className="relative w-20 h-28" style={{ imageRendering: 'pixelated' }}>
         <Image
           src={NPC010_SPRITES[direction]}
           alt="Elena"
@@ -344,9 +345,19 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   }
 
   // Depth-based scaling (perspectiva isometrica) - más abajo = más grande
-  // Aumentar el rango de escala para mejor proporción visual
-  const baseScale = 0.6; // Escala base mínima
-  const maxScale = 1.2; // Escala máxima para personajes al fondo
+  // Rango de escala diferente según la escena
+  let baseScale = 0.9;  // Default para plaza-central
+  let maxScale = 1.3;
+  
+  // Ajustar escala según la escena
+  if (currentScene === 'plaza-central') {
+    baseScale = 0.5;  // Más pequeños en la plaza
+    maxScale = 0.75;
+  } else if (currentScene === 'vinedo' || currentScene === 'fermentacion' || currentScene === 'oficina') {
+    baseScale = 1.0;  // Más grandes en otros mapas
+    maxScale = 1.4;
+  }
+  
   const depthScale = baseScale + (agent.y / 100) * (maxScale - baseScale);
   
   // Sombra dinámica: más oscura y alargada si está más arriba

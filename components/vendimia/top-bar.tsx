@@ -84,7 +84,7 @@ export function TopBar({ season, day, totalGrapes, currentScene = 'plaza-central
               className="text-xs font-bold"
               style={{ fontFamily: 'var(--font-vt323)', color: '#7c3aed' }}
             >
-              {totalGrapes.toLocaleString()}
+              {totalGrapes.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
             </span>
           </div>
         </div>
