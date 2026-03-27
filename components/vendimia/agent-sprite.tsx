@@ -340,13 +340,13 @@ export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-
   let baseScale = 0.9;  // Default para plaza-central
   let maxScale = 1.3;
   
-  // Ajustar escala según la escena - valores restaurados para mejor proporcion
+  // Ajustar escala según la escena
   if (currentScene === 'plaza-central') {
-    baseScale = 0.65;  // Plaza - tamaño medio
-    maxScale = 0.85;
+    baseScale = 0.5;  // Más pequeños en la plaza
+    maxScale = 0.75;
   } else if (currentScene === 'vinedo' || currentScene === 'fermentacion' || currentScene === 'oficina') {
-    baseScale = 0.9;  // Otros mapas - un poco más grandes
-    maxScale = 1.2;
+    baseScale = 1.0;  // Más grandes en otros mapas
+    maxScale = 1.4;
   }
   
   const depthScale = baseScale + (agent.y / 100) * (maxScale - baseScale);
