@@ -417,29 +417,49 @@ export function TaskLabel({
   progress: number;
 }) {
   const taskConfig: Record<string, { icon: React.FC<{ size?: number }>; label: string; color: string }> = {
-    // Vinedo
     cosecha: { icon: GrapeIcon, label: 'Cosecha', color: '#4caf50' },
     riego: { icon: WateringCanIcon, label: 'Riego', color: '#4caf50' },
     poda: { icon: PruningIcon, label: 'Poda', color: '#4caf50' },
-    // Fermentacion
     fermentacion: { icon: BarrelIcon, label: 'Fermentacion', color: '#ff9800' },
     embotellado: { icon: BottleIcon, label: 'Embotellado', color: '#ff9800' },
-    // Oficina
     cata: { icon: WineGlassIcon, label: 'Cata', color: '#9c27b0' },
     administracion: { icon: BottleIcon, label: 'Admin', color: '#2196f3' },
     contabilidad: { icon: BottleIcon, label: 'Contabilidad', color: '#2196f3' },
     marketing: { icon: BottleIcon, label: 'Marketing', color: '#2196f3' },
-    // Plaza
     venta: { icon: GrapeIcon, label: 'Venta', color: '#e91e63' },
     espera: { icon: GrapeIcon, label: 'Espera', color: '#9e9e9e' },
     descanso: { icon: GrapeIcon, label: 'Descanso', color: '#9e9e9e' },
   };
   
-  // Configuración segura con fallback - siempre retorna un config valido
-  const safeConfig = task && typeof task === 'string' && taskConfig[task] 
-    ? taskConfig[task] 
-    : { icon: GrapeIcon, label: task || 'Tarea', color: '#9e9e9e' };
-  const Icon = safeConfig.icon;
+  if (!task || typeof task !== 'string' || !taskConfig[task]) {
+    const defaultIcon = GrapeIcon;
+    const DefaultIcon = defaultIcon;
+    return (
+      <div 
+        className="flex items-center gap-2 px-3 py-1.5"
+        style={{
+          backgroundColor: '#f5f0e1',
+          border: '2px solid #4a3728',
+          borderRadius: '4px',
+          boxShadow: '2px 2px 0 rgba(0,0,0,0.2)'
+        }}
+      >
+        <DefaultIcon size={18} />
+        <div className="flex flex-col gap-0.5">
+          <span 
+            className="text-xs font-bold"
+            style={{ color: '#4a3728', fontFamily: 'var(--font-vt323)', letterSpacing: '1px' }}
+          >
+            {task || 'Tarea'}
+          </span>
+          <ProgressBar progress={progress} color="#9e9e9e" width={50} height={6} />
+        </div>
+      </div>
+    );
+  }
+
+  const config = taskConfig[task];
+  const Icon = config.icon;
   
   return (
     <div 
@@ -457,9 +477,9 @@ export function TaskLabel({
           className="text-xs font-bold"
           style={{ color: '#4a3728', fontFamily: 'var(--font-vt323)', letterSpacing: '1px' }}
         >
-          {safeConfig.label}
+          {config.label}
         </span>
-        <ProgressBar progress={progress} color={safeConfig.color} width={50} height={6} />
+        <ProgressBar progress={progress} color={config.color} width={50} height={6} />
       </div>
     </div>
   );
