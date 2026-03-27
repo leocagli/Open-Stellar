@@ -344,7 +344,10 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   }
 
   // Depth-based scaling (perspectiva isometrica) - más abajo = más grande
-  const depthScale = 0.85 + (agent.y / 100) * 0.3;
+  // Aumentar el rango de escala para mejor proporción visual
+  const baseScale = 0.6; // Escala base mínima
+  const maxScale = 1.2; // Escala máxima para personajes al fondo
+  const depthScale = baseScale + (agent.y / 100) * (maxScale - baseScale);
   
   // Sombra dinámica: más oscura y alargada si está más arriba
   const shadowScale = 0.6 + (agent.y / 100) * 0.4;
