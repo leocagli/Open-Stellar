@@ -1,9 +1,8 @@
 'use client'
-
+// Wallet connection for BNB and Stellar networks
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAccount, useDisconnect } from 'wagmi'
-import { useAppKitReady } from './wallet-provider'
 import { 
   connectFreighter, 
   getFreighterPublicKey, 
@@ -12,8 +11,6 @@ import {
   disconnectFreighter,
   type StellarNetwork
 } from '@/lib/stellar-utils'
-
-type WalletType = 'bnb' | 'stellar' | null
 
 interface WalletState {
   bnb: { address: string | null; connected: boolean }
@@ -27,7 +24,7 @@ export function WalletButton() {
     stellar: { publicKey: null, network: null, connected: false }
   })
   const [freighterAvailable, setFreighterAvailable] = useState(false)
-  const [isConnecting, setIsConnecting] = useState<WalletType>(null)
+  const [isConnecting, setIsConnecting] = useState<'bnb' | 'stellar' | null>(null)
 
   const { address: bnbAddress, isConnected: isBnbConnected } = useAccount()
   const { disconnect: disconnectBnb } = useDisconnect()
@@ -50,17 +47,13 @@ export function WalletButton() {
           }
         }
       } catch (e) {
-        console.log('[v0] Checking freighter...')
+        // Silent
       }
     }
     
-    const timer1 = setTimeout(checkFreighter, 500)
-    const timer2 = setTimeout(checkFreighter, 1500)
-    
-    return () => {
-      clearTimeout(timer1)
-      clearTimeout(timer2)
-    }
+    const t1 = setTimeout(checkFreighter, 500)
+    const t2 = setTimeout(checkFreighter, 1500)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
   useEffect(() => {
@@ -74,9 +67,7 @@ export function WalletButton() {
     setIsConnecting('bnb')
     try {
       const appKit = (window as any).appKit
-      if (appKit?.open) {
-        await appKit.open()
-      }
+      if (appKit?.open) await appKit.open()
     } catch (err) {
       console.error('[v0] BNB Error:', err)
     } finally {
@@ -106,45 +97,31 @@ export function WalletButton() {
 
   const handleDisconnectBnb = useCallback(() => {
     disconnectBnb()
-    setWalletState(prev => ({
-      ...prev,
-      bnb: { address: null, connected: false }
-    }))
+    setWalletState(prev => ({ ...prev, bnb: { address: null, connected: false } }))
   }, [disconnectBnb])
 
   const handleDisconnectStellar = useCallback(() => {
     disconnectFreighter()
-    setWalletState(prev => ({
-      ...prev,
-      stellar: { publicKey: null, network: null, connected: false }
-    }))
+    setWalletState(prev => ({ ...prev, stellar: { publicKey: null, network: null, connected: false } }))
   }, [])
 
-  const formatAddress = (addr: string) => `${addr.slice(0, 4)}..${addr.slice(-3)}`
-  const hasConnection = walletState.bnb.connected || walletState.stellar.connected
-  const bg = hasConnection ? '#2d5a27' : '#4a3728'
-  const border = hasConnection ? '#1a3d16' : '#2d221a'
+  const formatAddr = (addr: string) => addr.slice(0, 4) + '..' + addr.slice(-3)
+  const hasConn = walletState.bnb.connected || walletState.stellar.connected
+  const bg = hasConn ? '#2d5a27' : '#4a3728'
+  const bdr = hasConn ? '#1a3d16' : '#2d221a'
 
   return (
     <div className="relative pointer-events-auto">
       <motion.button
         onClick={() => setShowDropdown(!showDropdown)}
         className="px-3 py-2 flex items-center gap-2"
-        style={{
-          backgroundColor: bg,
-          border: `3px solid ${border}`,
-          boxShadow: '3px 3px 0 rgba(0,0,0,0.3)',
-          fontFamily: 'var(--font-vt323)',
-          imageRendering: 'pixelated'
-        }}
+        style={{ backgroundColor: bg, border: '3px solid ' + bdr, boxShadow: '3px 3px 0 rgba(0,0,0,0.3)', fontFamily: 'var(--font-vt323)', imageRendering: 'pixelated' }}
         whileHover={{ y: -1 }}
         whileTap={{ y: 1 }}
       >
-        <WalletIcon connected={hasConnection} />
+        <WalletIcon connected={hasConn} />
         <span className="text-xs font-bold text-white uppercase tracking-wide">
-          {hasConnection 
-            ? (walletState.bnb.address ? formatAddress(walletState.bnb.address) : formatAddress(walletState.stellar.publicKey || ''))
-            : 'WALLET'}
+          {hasConn ? (walletState.bnb.address ? formatAddr(walletState.bnb.address) : formatAddr(walletState.stellar.publicKey || '')) : 'WALLET'}
         </span>
       </motion.button>
 
@@ -155,41 +132,27 @@ export function WalletButton() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             className="absolute top-full right-0 mt-2 w-56 z-50"
-            style={{
-              backgroundColor: '#f5e6d3',
-              border: '4px solid #4a3728',
-              boxShadow: '4px 4px 0 rgba(0,0,0,0.4)',
-              imageRendering: 'pixelated'
-            }}
+            style={{ backgroundColor: '#f5e6d3', border: '4px solid #4a3728', boxShadow: '4px 4px 0 rgba(0,0,0,0.4)', imageRendering: 'pixelated' }}
           >
             <div style={{ backgroundColor: '#4a3728', borderBottom: '2px solid #2d221a', padding: '8px 12px' }}>
-              <span style={{ fontFamily: 'var(--font-vt323)', color: '#ffd700', fontSize: '12px', fontWeight: 'bold' }}>
-                CONECTAR WALLET
-              </span>
+              <span style={{ fontFamily: 'var(--font-vt323)', color: '#ffd700', fontSize: '12px', fontWeight: 'bold' }}>CONECTAR WALLET</span>
             </div>
 
             <div style={{ padding: '12px', borderBottom: '2px solid #4a3728' }}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <BnbIcon />
-                  <span style={{ fontFamily: 'var(--font-vt323)', color: '#4a3728', fontSize: '12px', fontWeight: 'bold' }}>
-                    BNB Testnet
-                  </span>
+                  <span style={{ fontFamily: 'var(--font-vt323)', color: '#4a3728', fontSize: '12px', fontWeight: 'bold' }}>BNB Testnet</span>
                 </div>
                 <StatusBadge active={walletState.bnb.connected} />
               </div>
-              
               {walletState.bnb.connected && walletState.bnb.address ? (
                 <div className="flex items-center justify-between gap-2">
-                  <span style={{ fontFamily: 'var(--font-vt323)', color: '#666', fontSize: '12px' }}>
-                    {formatAddress(walletState.bnb.address)}
-                  </span>
-                  <Button onClick={handleDisconnectBnb} variant="danger" small>X</Button>
+                  <span style={{ fontFamily: 'var(--font-vt323)', color: '#666', fontSize: '12px' }}>{formatAddr(walletState.bnb.address)}</span>
+                  <Btn onClick={handleDisconnectBnb} variant="danger" small>X</Btn>
                 </div>
               ) : (
-                <Button onClick={handleConnectBnb} disabled={isConnecting === 'bnb'} variant="bnb" fullWidth>
-                  {isConnecting === 'bnb' ? 'Conectando...' : 'WalletConnect'}
-                </Button>
+                <Btn onClick={handleConnectBnb} disabled={isConnecting === 'bnb'} variant="bnb" fullWidth>{isConnecting === 'bnb' ? 'Conectando...' : 'WalletConnect'}</Btn>
               )}
             </div>
 
@@ -197,29 +160,20 @@ export function WalletButton() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <StellarIcon />
-                  <span style={{ fontFamily: 'var(--font-vt323)', color: '#4a3728', fontSize: '12px', fontWeight: 'bold' }}>
-                    Stellar Testnet
-                  </span>
+                  <span style={{ fontFamily: 'var(--font-vt323)', color: '#4a3728', fontSize: '12px', fontWeight: 'bold' }}>Stellar Testnet</span>
                 </div>
                 <StatusBadge active={walletState.stellar.connected} />
               </div>
-              
               {walletState.stellar.connected && walletState.stellar.publicKey ? (
                 <div className="flex items-center justify-between gap-2">
-                  <span style={{ fontFamily: 'var(--font-vt323)', color: '#666', fontSize: '12px' }}>
-                    {formatAddress(walletState.stellar.publicKey)}
-                  </span>
-                  <Button onClick={handleDisconnectStellar} variant="danger" small>X</Button>
+                  <span style={{ fontFamily: 'var(--font-vt323)', color: '#666', fontSize: '12px' }}>{formatAddr(walletState.stellar.publicKey)}</span>
+                  <Btn onClick={handleDisconnectStellar} variant="danger" small>X</Btn>
                 </div>
               ) : (
-                <Button onClick={handleConnectStellar} disabled={isConnecting === 'stellar'} variant="stellar" fullWidth>
-                  {isConnecting === 'stellar' ? 'Conectando...' : 'Freighter'}
-                </Button>
+                <Btn onClick={handleConnectStellar} disabled={isConnecting === 'stellar'} variant="stellar" fullWidth>{isConnecting === 'stellar' ? 'Conectando...' : 'Freighter'}</Btn>
               )}
-              <div style={{ fontSize: '11px', marginTop: '8px', textAlign: 'center' }}>
-                <span style={{ fontFamily: 'var(--font-vt323)', color: freighterAvailable ? '#2d5a27' : '#8b2942' }}>
-                  {freighterAvailable ? 'Freighter Detectado' : 'Descarga Freighter'}
-                </span>
+              <div style={{ fontSize: '11px', marginTop: '8px', textAlign: 'center', fontFamily: 'var(--font-vt323)', color: freighterAvailable ? '#2d5a27' : '#8b2942' }}>
+                {freighterAvailable ? 'Freighter Detectado' : 'Descarga Freighter'}
               </div>
             </div>
           </motion.div>
@@ -266,50 +220,16 @@ function StellarIcon() {
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
-    <div style={{ 
-      backgroundColor: active ? '#2d5a27' : '#8b8b8b',
-      border: `2px solid ${active ? '#1a3d16' : '#666'}`,
-      fontFamily: 'var(--font-vt323)',
-      color: '#fff',
-      fontSize: '10px',
-      padding: '2px 6px'
-    }}>
+    <div style={{ backgroundColor: active ? '#2d5a27' : '#8b8b8b', border: '2px solid ' + (active ? '#1a3d16' : '#666'), fontFamily: 'var(--font-vt323)', color: '#fff', fontSize: '10px', padding: '2px 6px' }}>
       {active ? 'ON' : 'OFF'}
     </div>
   )
 }
 
-interface ButtonProps {
-  children: React.ReactNode
-  onClick: () => void
-  disabled?: boolean
-  variant?: 'bnb' | 'stellar' | 'danger' | 'default'
-  fullWidth?: boolean
-  small?: boolean
-}
-
-function Button({ children, onClick, disabled, variant = 'default', fullWidth, small }: ButtonProps) {
-  const colors = {
-    bnb: { bg: '#f0b90b', border: '#c99b09', text: '#1e2026' },
-    stellar: { bg: '#222', border: '#000', text: '#fff' },
-    danger: { bg: '#8b2942', border: '#5c1a2a', text: '#fff' },
-    default: { bg: '#4a3728', border: '#2d221a', text: '#fff' }
-  }[variant]
-
+function Btn({ children, onClick, disabled, variant = 'default', fullWidth, small }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; variant?: 'bnb' | 'stellar' | 'danger' | 'default'; fullWidth?: boolean; small?: boolean }) {
+  const c = { bnb: { bg: '#f0b90b', bdr: '#c99b09', txt: '#1e2026' }, stellar: { bg: '#222', bdr: '#000', txt: '#fff' }, danger: { bg: '#8b2942', bdr: '#5c1a2a', txt: '#fff' }, default: { bg: '#4a3728', bdr: '#2d221a', txt: '#fff' } }[variant]
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`${fullWidth ? 'w-full' : ''} ${small ? 'px-2 py-1' : 'py-2 px-3'} text-xs font-bold uppercase`}
-      style={{ 
-        backgroundColor: disabled ? '#ccc' : colors.bg,
-        border: `2px solid ${disabled ? '#999' : colors.border}`,
-        color: disabled ? '#666' : colors.text,
-        fontFamily: 'var(--font-vt323)',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        boxShadow: disabled ? 'none' : '2px 2px 0 rgba(0,0,0,0.2)'
-      }}
-    >
+    <button onClick={onClick} disabled={disabled} className={(fullWidth ? 'w-full ' : '') + (small ? 'px-2 py-1' : 'py-2 px-3') + ' text-xs font-bold uppercase'} style={{ backgroundColor: disabled ? '#ccc' : c.bg, border: '2px solid ' + (disabled ? '#999' : c.bdr), color: disabled ? '#666' : c.txt, fontFamily: 'var(--font-vt323)', cursor: disabled ? 'not-allowed' : 'pointer', boxShadow: disabled ? 'none' : '2px 2px 0 rgba(0,0,0,0.2)' }}>
       {children}
     </button>
   )
