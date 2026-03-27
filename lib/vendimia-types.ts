@@ -30,9 +30,6 @@ export interface Agent {
   x: number;
   y: number;
   color: string;
-  model?: string;
-  skills?: string[];
-  reputationScore?: number;
   skinColor?: string;
   hairColor?: string;
   shirtColor?: string;

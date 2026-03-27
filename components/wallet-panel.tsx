@@ -3,13 +3,6 @@
 import { useState, useEffect, useCallback } from "react"
 import type { MoltbotAgent, WalletTransaction } from "@/lib/types"
 
-interface X402QuoteView {
-  paymentRef: string
-  amountUsd: number
-  expiresAt: string
-  chain: "bnb" | "stellar"
-}
-
 interface WalletPanelProps {
   agents: MoltbotAgent[]
   selectedAgent: MoltbotAgent | null
@@ -65,9 +58,6 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
   const [error, setError] = useState<string | null>(null)
   const [sendTo, setSendTo] = useState("")
   const [sendAmount, setSendAmount] = useState("10")
-  const [track8004Mode, setTrack8004Mode] = useState<"native-8004" | "reputation-fallback" | null>(null)
-  const [reputationScore, setReputationScore] = useState<number | null>(null)
-  const [x402Quote, setX402Quote] = useState<X402QuoteView | null>(null)
 
   // Check Freighter availability on mount
   useEffect(() => {
@@ -269,112 +259,6 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
     }
     setLoading(null)
   }, [agents, sendTo, sendAmount, onUpdateAgent, onAddTransaction])
-
-  useEffect(() => {
-    if (!selectedAgent) return
-
-    let cancelled = false
-    const syncProtocolState = async () => {
-      try {
-        const [trackRes, repRes] = await Promise.all([
-          fetch("/api/protocol/track8004?chain=stellar"),
-          fetch(`/api/protocol/reputation?actorId=${encodeURIComponent(selectedAgent.id)}`),
-        ])
-
-        const trackData = await trackRes.json()
-        const repData = await repRes.json()
-
-        if (!cancelled) {
-          setTrack8004Mode(trackData?.resolution?.mode || null)
-          setReputationScore(typeof repData?.reputation?.score === "number" ? repData.reputation.score : null)
-        }
-      } catch {
-        if (!cancelled) {
-          setTrack8004Mode(null)
-          setReputationScore(null)
-        }
-      }
-    }
-
-    syncProtocolState()
-    return () => {
-      cancelled = true
-    }
-  }, [selectedAgent])
-
-  const applyReputation = useCallback(async (agentId: string, delta: number, reason: string) => {
-    const res = await fetch("/api/protocol/reputation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actorId: agentId, delta, reason, scope: "tx" }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data?.error || "Reputation update failed")
-    setReputationScore(typeof data?.reputation?.score === "number" ? data.reputation.score : null)
-  }, [])
-
-  const handleCreateX402Quote = useCallback(async (agent: MoltbotAgent) => {
-    setLoading("x402-quote")
-    setError(null)
-    try {
-      const res = await fetch("/api/protocol/x402/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceId: `npc-${agent.id}-service`,
-          chain: "stellar",
-          payer: agent.id,
-          units: 1,
-          unitPriceUsd: 0.05,
-          ttlSeconds: 300,
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok || !data?.quote) {
-        throw new Error(data?.error || "x402 quote failed")
-      }
-
-      setX402Quote({
-        paymentRef: data.quote.paymentRef,
-        amountUsd: Number(data.quote.amountUsd || 0),
-        expiresAt: String(data.quote.expiresAt || ""),
-        chain: data.quote.chain === "bnb" ? "bnb" : "stellar",
-      })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "x402 quote failed")
-    }
-    setLoading(null)
-  }, [])
-
-  const handleSettleX402 = useCallback(async (agent: MoltbotAgent) => {
-    if (!x402Quote) return
-    setLoading("x402-settle")
-    setError(null)
-    try {
-      const mockTxHash = `0x${Date.now().toString(16).padStart(64, "0").slice(-64)}`
-      const settleRes = await fetch("/api/protocol/x402/settle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          paymentRef: x402Quote.paymentRef,
-          chain: x402Quote.chain,
-          txHash: mockTxHash,
-          paidBy: agent.id,
-        }),
-      })
-      const settleData = await settleRes.json()
-      if (!settleRes.ok) {
-        throw new Error(settleData?.error || "x402 settlement failed")
-      }
-
-      await applyReputation(agent.id, 15, "successful-x402-settlement")
-      setX402Quote(null)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "x402 settlement failed")
-    }
-    setLoading(null)
-  }, [applyReputation, x402Quote])
 
   // -- Render --
 
@@ -652,62 +536,6 @@ export function WalletPanel({ agents, selectedAgent, transactions, onUpdateAgent
               </div>
             </div>
           )}
-
-          {/* Protocol controls: x402 + 8004 fallback reputation */}
-          <div style={{ background: "#0f172a", borderRadius: 6, padding: 10, border: "1px solid #1e293b", display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontFamily: "monospace", fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: 1 }}>
-              Protocol Layer
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "monospace", fontSize: 10 }}>
-              <span style={{ color: "#94a3b8" }}>Track 8004 Mode</span>
-              <span style={{ color: track8004Mode === "reputation-fallback" ? "#fbbf24" : "#22d3ee", fontWeight: 700 }}>
-                {track8004Mode || "unknown"}
-              </span>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "monospace", fontSize: 10 }}>
-              <span style={{ color: "#94a3b8" }}>Reputation</span>
-              <span style={{ color: "#34d399", fontWeight: 700 }}>{reputationScore ?? "--"}</span>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-              <WalletBtn
-                label={loading === "x402-quote" ? "Quote..." : "x402 Quote"}
-                onClick={() => handleCreateX402Quote(selectedAgent)}
-                disabled={loading !== null}
-                color="#22d3ee"
-              />
-              <WalletBtn
-                label={loading === "x402-settle" ? "Settle..." : "x402 Settle"}
-                onClick={() => handleSettleX402(selectedAgent)}
-                disabled={loading !== null || !x402Quote}
-                color="#34d399"
-              />
-            </div>
-
-            {x402Quote && (
-              <div style={{ fontFamily: "monospace", fontSize: 9, color: "#94a3b8", lineHeight: 1.4 }}>
-                ref: {truncAddr(x402Quote.paymentRef)} | usd: {x402Quote.amountUsd.toFixed(3)} | exp: {new Date(x402Quote.expiresAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}
-              </div>
-            )}
-
-            <WalletBtn
-              label="Penalty -10"
-              onClick={async () => {
-                setLoading("rep-penalty")
-                setError(null)
-                try {
-                  await applyReputation(selectedAgent.id, -10, "manual-penalty")
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : "reputation penalty failed")
-                }
-                setLoading(null)
-              }}
-              disabled={loading !== null}
-              color="#f87171"
-            />
-          </div>
         </>
       )}
 

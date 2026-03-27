@@ -151,38 +151,8 @@ export function AgentsSidebar({ agents, selectedAgent, onAgentSelect }: AgentsSi
                         >
                           {agent.name}
                         </div>
-                        <div
-                          className="truncate"
-                          style={{
-                            fontFamily: 'var(--font-vt323)',
-                            color: '#b6a79a',
-                            fontSize: '11px'
-                          }}
-                        >
-                          {agent.model || 'llm-pending'}
-                        </div>
                         <div className="flex items-center gap-1">
                           <TaskIconSmall task={agent.task} />
-                          <span
-                            style={{
-                              fontFamily: 'var(--font-vt323)',
-                              color: '#f5f0e1',
-                              fontSize: '11px'
-                            }}
-                          >
-                            {taskInfo?.label || agent.task}
-                          </span>
-                          {typeof agent.reputationScore === 'number' && (
-                            <span
-                              style={{
-                                fontFamily: 'var(--font-vt323)',
-                                color: '#9ad67b',
-                                fontSize: '11px'
-                              }}
-                            >
-                              REP {agent.reputationScore}
-                            </span>
-                          )}
                         </div>
                       </div>
 

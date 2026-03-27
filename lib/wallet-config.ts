@@ -14,7 +14,7 @@ if (walletConnectProjectId) {
       metadata: {
         name: 'Open Vinito',
         description: 'Open Vinito multi-chain dApp',
-        url: process.env.NEXT_PUBLIC_APP_URL || 'https://v0-open-vinito.vercel.app',
+        url: 'http://localhost:3000',
         icons: ['https://avatars.githubusercontent.com/u/37784886'],
       },
     })

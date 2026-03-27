@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount, useChainId, useConnect, usePublicClient, useSendTransaction, useSwitchChain } from 'wagmi';
+import { useAccount, useChainId, useConnect, usePublicClient, useSendTransaction } from 'wagmi';
 import { bscTestnet } from 'wagmi/chains';
 import { connectFreighter, getFreighterNetwork, getFreighterPublicKey, isFreighterInstalled, sendStellarPayment } from '@/lib/stellar-utils';
 import { isAddress, parseEther } from 'viem';
@@ -22,7 +22,6 @@ export function TransactionPanel() {
   const bnbPublicClient = usePublicClient({ chainId: bscTestnet.id });
   const { sendTransactionAsync, isPending: isSendingBnb } = useSendTransaction();
   const { connect, connectors, isPending: isConnectingBnb } = useConnect();
-  const { switchChainAsync, isPending: isSwitchingChain } = useSwitchChain();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'bnb' | 'stellar'>('bnb');
   const [txLogs, setTxLogs] = useState<TransactionLog[]>([]);
@@ -33,7 +32,7 @@ export function TransactionPanel() {
   const [isSendingStellar, setIsSendingStellar] = useState(false);
   const [isConnectingStellar, setIsConnectingStellar] = useState(false);
   const bnbTestnetReady = isConnected && bnbChainId === bscTestnet.id;
-  const bnbDefaultRecipient = address || '';
+  const bnbDefaultRecipient = useMemo(() => address || '', [address]);
 
   const addLog = (log: Omit<TransactionLog, 'id' | 'timestamp'>) => {
     setTxLogs((prev) => [
@@ -234,11 +233,10 @@ export function TransactionPanel() {
           txHash,
         });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error de conexion'
       addLog({
         type: 'stellar',
         status: 'error',
-        message: message.slice(0, 80),
+        message: 'Error de conexion',
       });
     } finally {
       setIsSendingStellar(false);
@@ -426,35 +424,12 @@ export function TransactionPanel() {
                     </button>
                   )}
                   {isConnected && bnbChainId !== bscTestnet.id && (
-                    <div className="space-y-2">
-                      <p 
-                        className="text-xs"
-                        style={{ fontFamily: 'var(--font-vt323)', color: '#8b2942' }}
-                      >
-                        Debe estar en BNB Testnet para operar.
-                      </p>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await switchChainAsync({ chainId: bscTestnet.id });
-                          } catch {
-                            addLog({ type: 'bnb', status: 'error', message: 'No se pudo cambiar de red' });
-                          }
-                        }}
-                        disabled={isSwitchingChain}
-                        className="w-full py-2 px-3 text-xs font-bold uppercase"
-                        style={{ 
-                          backgroundColor: !isSwitchingChain ? '#4a3728' : '#ccc',
-                          border: `2px solid ${!isSwitchingChain ? '#2d221a' : '#999'}`,
-                          color: !isSwitchingChain ? '#fff' : '#666',
-                          fontFamily: 'var(--font-vt323)',
-                          cursor: !isSwitchingChain ? 'pointer' : 'not-allowed',
-                          boxShadow: !isSwitchingChain ? '2px 2px 0 rgba(0,0,0,0.2)' : 'none'
-                        }}
-                      >
-                        {isSwitchingChain ? 'Cambiando...' : 'Cambiar a BNB Testnet'}
-                      </button>
-                    </div>
+                    <p 
+                      className="text-xs"
+                      style={{ fontFamily: 'var(--font-vt323)', color: '#8b2942' }}
+                    >
+                      Debe estar en BNB Testnet para operar.
+                    </p>
                   )}
                 </>
               )}

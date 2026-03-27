@@ -1,3 +1,5 @@
+'use client'
+
 import freighter from '@stellar/freighter-api'
 import { Asset, BASE_FEE, Horizon, Operation, StrKey, TransactionBuilder } from '@stellar/stellar-sdk'
 
@@ -213,6 +215,7 @@ export async function signTransaction(
 export function disconnectFreighter(): void {
   // Freighter doesn't have an explicit disconnect method
   // The dApp just stops tracking the connection
+  console.log('[v0] Freighter disconnected from dApp')
 }
 
 export async function sendStellarPayment(params: {

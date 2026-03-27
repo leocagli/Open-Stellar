@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAccount, useChainId, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
 import { bscTestnet } from 'wagmi/chains'
@@ -31,7 +31,6 @@ interface WalletState {
 export function WalletButton() {
   const [showDropdown, setShowDropdown] = useState(false)
   const [stellarManuallyDisconnected, setStellarManuallyDisconnected] = useState(false)
-  const stellarManuallyDisconnectedRef = useRef(false)
   const [walletState, setWalletState] = useState<WalletState>({
     bnb: { address: null, connected: false },
     stellar: { publicKey: null, network: null, connected: false }
@@ -51,7 +50,7 @@ export function WalletButton() {
     const installed = await isFreighterInstalled()
     setFreighterAvailable(installed)
 
-    if (stellarManuallyDisconnectedRef.current) {
+    if (stellarManuallyDisconnected) {
       setWalletState(prev => ({
         ...prev,
         stellar: { publicKey: null, network: null, connected: false }
@@ -81,7 +80,7 @@ export function WalletButton() {
       ...prev,
       stellar: { publicKey, network, connected: true }
     }))
-  }, [])
+  }, [stellarManuallyDisconnected])
 
   // Keep Freighter state in sync like wagmi does for EVM wallets
   useEffect(() => {
@@ -113,10 +112,9 @@ export function WalletButton() {
 
     setIsConnecting('bnb')
     try {
-      await connect({ connector })
+      connect({ connector })
     } catch (err) {
-      const safeErr = err instanceof Error ? err.message.replace(/[\r\n]/g, ' ') : 'Unknown error'
-      console.error('[v0] Error connecting BNB wallet:', safeErr)
+      console.error('[v0] Error connecting BNB wallet:', err)
     } finally {
       setIsConnecting(null)
       setShowDropdown(false)
@@ -128,12 +126,10 @@ export function WalletButton() {
     setIsConnecting('stellar')
     try {
       setStellarManuallyDisconnected(false)
-      stellarManuallyDisconnectedRef.current = false
       const { publicKey, error } = await connectFreighter()
       
       if (error) {
-        const safeError = error.replace(/[\r\n]/g, ' ')
-        console.error('[v0] Freighter error:', safeError)
+        console.error('[v0] Freighter error:', error)
         return
       }
 
@@ -141,8 +137,7 @@ export function WalletButton() {
         await syncFreighterState()
       }
     } catch (err) {
-      const safeErr = err instanceof Error ? err.message.replace(/[\r\n]/g, ' ') : 'Unknown error'
-      console.error('[v0] Error connecting Stellar wallet:', safeErr)
+      console.error('[v0] Error connecting Stellar wallet:', err)
     } finally {
       setIsConnecting(null)
       setShowDropdown(false)
@@ -168,7 +163,6 @@ export function WalletButton() {
 
   const handleDisconnectStellar = useCallback(() => {
     setStellarManuallyDisconnected(true)
-    stellarManuallyDisconnectedRef.current = true
     disconnectFreighter()
     setWalletState(prev => ({
       ...prev,
@@ -372,12 +366,12 @@ export function WalletButton() {
               ) : (
                 <PixelButton
                   onClick={handleConnectStellar}
-                  disabled={isConnecting === 'stellar'}
+                  disabled={isConnecting === 'stellar' || !freighterAvailable}
                   variant="stellar"
                   fullWidth
                 >
                   {!freighterAvailable 
-                    ? 'Instalar / Reintentar' 
+                    ? 'Instalar Freighter' 
                     : isConnecting === 'stellar' 
                     ? 'Conectando...' 
                     : stellarManuallyDisconnected

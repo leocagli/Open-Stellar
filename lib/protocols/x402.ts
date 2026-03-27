@@ -46,43 +46,14 @@ function parseUnits(value: number, decimals: number) {
   return fixed.replace('.', '')
 }
 
-type QuoteRegistry = Map<string, X402Quote>
-
-const globalState = globalThis as typeof globalThis & {
-  __x402QuoteRegistry__?: QuoteRegistry
-}
-
-const quoteRegistry: QuoteRegistry = globalState.__x402QuoteRegistry__ ?? new Map()
-if (!globalState.__x402QuoteRegistry__) {
-  globalState.__x402QuoteRegistry__ = quoteRegistry
-}
-
-export interface X402SettlementResult {
-  ok: boolean
-  receipt?: X402Receipt
-  error?: string
-}
-
 export function createX402Quote(input: X402QuoteRequest): X402Quote {
   const ttlSeconds = input.ttlSeconds ?? 300
-  if (!Number.isFinite(ttlSeconds) || ttlSeconds <= 0) {
-    throw new Error('ttlSeconds must be > 0')
-  }
-
-  if (!Number.isFinite(input.units) || input.units <= 0) {
-    throw new Error('units must be > 0')
-  }
-
-  if (!Number.isFinite(input.unitPriceUsd) || input.unitPriceUsd <= 0) {
-    throw new Error('unitPriceUsd must be > 0')
-  }
-
   const amountUsd = Number((input.units * input.unitPriceUsd).toFixed(6))
   const amountUnits = parseUnits(amountUsd, CHAIN_DECIMALS[input.chain])
   const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString()
   const paymentRef = `${input.serviceId}:${input.chain}:${Date.now()}`
 
-  const quote: X402Quote = {
+  return {
     code: 402,
     serviceId: input.serviceId,
     chain: input.chain,
@@ -93,9 +64,6 @@ export function createX402Quote(input: X402QuoteRequest): X402Quote {
     paymentRef,
     memo: `x402/${input.serviceId}/${input.chain}`,
   }
-
-  quoteRegistry.set(paymentRef, quote)
-  return quote
 }
 
 export function verifyX402Settlement(input: X402Settlement): X402Receipt {
@@ -108,33 +76,4 @@ export function verifyX402Settlement(input: X402Settlement): X402Receipt {
     txHash: input.txHash,
     chain: input.chain,
   }
-}
-
-export function settleX402(input: X402Settlement): X402SettlementResult {
-  const quote = quoteRegistry.get(input.paymentRef)
-  if (!quote) {
-    return { ok: false, error: 'Quote not found for paymentRef' }
-  }
-
-  if (quote.chain !== input.chain) {
-    return { ok: false, error: 'Settlement chain does not match quote chain' }
-  }
-
-  const isExpired = Date.now() > new Date(quote.expiresAt).getTime()
-  if (isExpired) {
-    quoteRegistry.delete(input.paymentRef)
-    return { ok: false, error: 'Quote expired' }
-  }
-
-  if (input.paidBy !== quote.payer) {
-    return { ok: false, error: 'paidBy does not match quote payer' }
-  }
-
-  const receipt = verifyX402Settlement(input)
-  if (!receipt.accepted) {
-    return { ok: false, error: 'Invalid tx hash format' }
-  }
-
-  quoteRegistry.delete(input.paymentRef)
-  return { ok: true, receipt }
 }
