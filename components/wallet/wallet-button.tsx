@@ -43,41 +43,24 @@ export function WalletButton() {
   // Check if AppKit is ready
   const appKitReady = useAppKitReady()
 
-  // Check Freighter availability on mount - with retries for slow loading
+  // Check Freighter availability on mount
   useEffect(() => {
-    let attempts = 0
-    const maxAttempts = 5
-    
     async function checkFreighter() {
-      // Check both ways - the API and direct window access
-      const freighterApi = await isFreighterInstalled()
-      const freighterWindow = typeof window !== 'undefined' && !!(window as any).freighter
-      const installed = freighterApi || freighterWindow
-      
+      const installed = await isFreighterInstalled()
       setFreighterAvailable(installed)
       
       if (installed) {
-        try {
-          const publicKey = await getFreighterPublicKey()
-          if (publicKey) {
-            const network = await getFreighterNetwork()
-            setWalletState(prev => ({
-              ...prev,
-              stellar: { publicKey, network, connected: true }
-            }))
-          }
-        } catch (e) {
-          // Freighter installed but not connected - that's OK
+        const publicKey = await getFreighterPublicKey()
+        if (publicKey) {
+          const network = await getFreighterNetwork()
+          setWalletState(prev => ({
+            ...prev,
+            stellar: { publicKey, network, connected: true }
+          }))
         }
-      } else if (attempts < maxAttempts) {
-        // Retry after a delay - extension might load slowly
-        attempts++
-        setTimeout(checkFreighter, 1000)
       }
     }
-    
-    // Initial check with small delay to let extension inject
-    setTimeout(checkFreighter, 500)
+    checkFreighter()
   }, [])
 
   // Sync BNB connection state
@@ -93,34 +76,30 @@ export function WalletButton() {
 
   // Connect to BNB via WalletConnect
   const handleConnectBnb = useCallback(async () => {
+    if (!appKitReady) {
+      console.warn('[v0] AppKit not ready - missing NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID')
+      return
+    }
+    
     setIsConnecting('bnb')
     try {
-      // Dynamic import to avoid SSR issues
       const { useAppKit } = await import('@reown/appkit/react')
+      // This is a workaround - we need to use the modal directly
       const appKit = (window as any).appKit
-      
       if (appKit?.open) {
         await appKit.open()
       } else {
-        // Try using the hook's open function
-        try {
-          const mod = await import('@reown/appkit/react')
-          if (mod.open) {
-            await mod.open()
-          }
-        } catch (e) {
-          console.error('[v0] Could not open wallet modal:', e)
-          alert('Error: Configura NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID en las variables de entorno')
-        }
+        // Fallback - try to import and use directly
+        const { open } = useAppKit()
+        await open()
       }
     } catch (err) {
       console.error('[v0] Error connecting BNB wallet:', err)
-      alert('Error conectando wallet. Verifica tu configuracion.')
     } finally {
       setIsConnecting(null)
       setShowDropdown(false)
     }
-  }, [])
+  }, [appKitReady])
 
   // Connect to Stellar via Freighter
   const handleConnectStellar = useCallback(async () => {
@@ -267,11 +246,15 @@ export function WalletButton() {
               ) : (
                 <PixelButton
                   onClick={handleConnectBnb}
-                  disabled={isConnecting === 'bnb'}
+                  disabled={isConnecting === 'bnb' || !appKitReady}
                   variant="bnb"
                   fullWidth
                 >
-                  {isConnecting === 'bnb' ? 'Conectando...' : 'WalletConnect'}
+                  {!appKitReady 
+                    ? 'Config Pendiente' 
+                    : isConnecting === 'bnb' 
+                    ? 'Conectando...' 
+                    : 'WalletConnect'}
                 </PixelButton>
               )}
             </div>
@@ -293,21 +276,50 @@ export function WalletButton() {
               
               {walletState.stellar.connected && walletState.stellar.publicKey ? (
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs truncate" style={{ fontFamily: 'var(--font-vt323)', color: '#666' }}>
+                  <span 
+                    className="text-xs truncate"
+                    style={{ fontFamily: 'var(--font-vt323)', color: '#666' }}
+                  >
                     {formatAddress(walletState.stellar.publicKey)}
                   </span>
-                  <PixelButton onClick={handleDisconnectStellar} variant="danger" small>
+                  <PixelButton 
+                    onClick={handleDisconnectStellar}
+                    variant="danger"
+                    small
+                  >
                     X
                   </PixelButton>
                 </div>
               ) : (
-                <PixelButton onClick={handleConnectStellar} disabled={isConnecting === 'stellar'} variant="stellar" fullWidth>
-                  {isConnecting === 'stellar' ? 'Conectando...' : 'Freighter'}
+                <PixelButton
+                  onClick={handleConnectStellar}
+                  disabled={isConnecting === 'stellar' || !freighterAvailable}
+                  variant="stellar"
+                  fullWidth
+                >
+                  {!freighterAvailable 
+                    ? 'Instalar Freighter' 
+                    : isConnecting === 'stellar' 
+                    ? 'Conectando...' 
+                    : 'Freighter'}
                 </PixelButton>
               )}
-              <a href="https://www.freighter.app/" target="_blank" rel="noopener noreferrer" className="block text-xs mt-2 text-center" style={{ fontFamily: 'var(--font-vt323)', color: freighterAvailable ? '#2d5a27' : '#8b2942', textDecoration: 'underline' }}>
-                {freighterAvailable ? 'Freighter Detectado' : 'Descargar Freighter'}
-              </a>
+              
+              {!freighterAvailable && (
+                <a 
+                  href="https://www.freighter.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-xs mt-2 text-center"
+                  style={{ 
+                    fontFamily: 'var(--font-vt323)', 
+                    color: '#8b2942',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Descargar Extension
+                </a>
+              )}
             </div>
           </motion.div>
         )}

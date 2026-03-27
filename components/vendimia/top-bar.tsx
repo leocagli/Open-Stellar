@@ -1,10 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { GrapeIcon } from './sprites';
 import { WalletButton } from '@/components/wallet/wallet-button';
-import { TransactionPanelInline } from '@/components/wallet/transaction-panel';
 
 interface TopBarProps {
   season: string;
@@ -23,8 +21,6 @@ const SCENE_LABELS: Record<string, string> = {
 };
 
 export function TopBar({ season, day, totalGrapes, currentScene = 'plaza-central', onSceneChange }: TopBarProps) {
-  const [showTransactions, setShowTransactions] = useState(false);
-
   return (
     <>
       {/* Left side - Game info */}
@@ -138,63 +134,17 @@ export function TopBar({ season, day, totalGrapes, currentScene = 'plaza-central
       </div>
     </motion.div>
 
-      {/* Right side - Wallet and Transactions */}
+      {/* Right side - Wallet */}
       <motion.div
         className="absolute top-0 right-0 z-10 pointer-events-none"
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
-        <div className="p-2 md:p-3 flex flex-col gap-2 items-end">
-          <div className="flex gap-2">
-            <WalletButton />
-            <motion.button
-              onClick={() => setShowTransactions(!showTransactions)}
-              className="px-3 py-2 flex items-center gap-2 pointer-events-auto"
-              style={{
-                backgroundColor: showTransactions ? '#2d5a27' : '#4a3728',
-                border: `3px solid ${showTransactions ? '#1a3d16' : '#2d221a'}`,
-                boxShadow: '3px 3px 0 rgba(0,0,0,0.3)',
-                fontFamily: 'var(--font-vt323)',
-                imageRendering: 'pixelated'
-              }}
-              whileHover={{ y: -1 }}
-              whileTap={{ y: 1 }}
-            >
-              <PixelCoinIcon />
-              <span className="text-xs font-bold text-white uppercase tracking-wide hidden sm:inline">
-                TX
-              </span>
-            </motion.button>
-          </div>
-          
-          {/* Inline Transaction Panel */}
-          <AnimatePresence>
-            {showTransactions && (
-              <TransactionPanelInline />
-            )}
-          </AnimatePresence>
+        <div className="p-2 md:p-3">
+          <WalletButton />
         </div>
       </motion.div>
     </>
-  );
-}
-
-function PixelCoinIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" style={{ imageRendering: 'pixelated' }}>
-      <rect x="4" y="1" width="8" height="2" fill="#ffd700" />
-      <rect x="2" y="3" width="2" height="2" fill="#ffd700" />
-      <rect x="12" y="3" width="2" height="2" fill="#ffd700" />
-      <rect x="1" y="5" width="2" height="6" fill="#ffd700" />
-      <rect x="13" y="5" width="2" height="6" fill="#ffd700" />
-      <rect x="2" y="11" width="2" height="2" fill="#ffd700" />
-      <rect x="12" y="11" width="2" height="2" fill="#ffd700" />
-      <rect x="4" y="13" width="8" height="2" fill="#ffd700" />
-      <rect x="3" y="3" width="10" height="10" fill="#c9a227" />
-      <rect x="6" y="5" width="4" height="1" fill="#ffd700" />
-      <rect x="7" y="6" width="2" height="4" fill="#ffd700" />
-      <rect x="6" y="10" width="4" height="1" fill="#ffd700" />
-    </svg>
   );
 }

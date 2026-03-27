@@ -138,7 +138,7 @@ export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-
         width={80}
         height={112}
         className="object-contain"
-        style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
+        style={{ imageRendering: 'pixelated' }}
         priority
       />
     );
@@ -153,7 +153,7 @@ export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-
         width={80}
         height={112}
         className="object-contain"
-        style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
+        style={{ imageRendering: 'pixelated' }}
         priority
       />
     );
@@ -168,7 +168,7 @@ export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-
         width={80}
         height={112}
         className="object-contain"
-        style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
+        style={{ imageRendering: 'pixelated' }}
         priority
       />
     );
@@ -183,7 +183,7 @@ export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-
         width={80}
         height={112}
         className="object-contain"
-        style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
+        style={{ imageRendering: 'pixelated' }}
         priority
       />
     );
@@ -198,7 +198,7 @@ export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-
         width={80}
         height={112}
         className="object-contain"
-        style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
+        style={{ imageRendering: 'pixelated' }}
         priority
       />
     );
@@ -213,7 +213,7 @@ export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-
         width={80}
         height={112}
         className="object-contain"
-        style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
+        style={{ imageRendering: 'pixelated' }}
         priority
       />
     );
@@ -228,7 +228,7 @@ export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-
         width={80}
         height={112}
         className="object-contain"
-        style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
+        style={{ imageRendering: 'pixelated' }}
         priority
       />
     );
@@ -243,7 +243,7 @@ export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-
         width={80}
         height={112}
         className="object-contain"
-        style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
+        style={{ imageRendering: 'pixelated' }}
         priority
       />
     );
@@ -258,7 +258,7 @@ export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-
         width={80}
         height={112}
         className="object-contain"
-        style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
+        style={{ imageRendering: 'pixelated' }}
         priority
       />
     );
