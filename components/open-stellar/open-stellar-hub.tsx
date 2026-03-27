@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { PixelCity } from "@/components/pixel-city"
 import { SidebarPanel } from "@/components/sidebar-panel"
 import { DISTRICTS, createAgents, generateChatMessage, getRandomTask } from "@/lib/data"
@@ -28,7 +28,7 @@ export function OpenStellarHub() {
     [agents, selectedAgentId]
   )
 
-  const pushLog = useCallback((message: string, type: LogEntry["type"] = "info", agent = "system") => {
+  const pushLog = (message: string, type: LogEntry["type"] = "info", agent = "system") => {
     setLogs((prev) => [
       ...prev.slice(-79),
       {
@@ -39,14 +39,11 @@ export function OpenStellarHub() {
         type,
       },
     ])
-  }, [])
-
-  const agentsRef = useRef(agents)
-  useEffect(() => { agentsRef.current = agents }, [agents])
+  }
 
   useEffect(() => {
     pushLog("Open-Stellar v0 frontend initialized", "success")
-  }, [pushLog])
+  }, [])
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -86,7 +83,7 @@ export function OpenStellarHub() {
   useEffect(() => {
     const chatInterval = window.setInterval(() => {
       setChatMessages((prev) => {
-        const next = generateChatMessage(agentsRef.current)
+        const next = generateChatMessage(agents)
         if (!next) return prev
 
         if (Math.random() < 0.5) {
@@ -98,32 +95,30 @@ export function OpenStellarHub() {
     }, 2200)
 
     return () => window.clearInterval(chatInterval)
-  }, [pushLog])
+  }, [agents])
 
-  const handleSelectAgent = useCallback((id: string | null) => {
+  const handleSelectAgent = (id: string | null) => {
     setSelectedAgentId(id)
 
-    const picked = agentsRef.current.find((agent) => agent.id === id)
+    const picked = agents.find((agent) => agent.id === id)
     if (picked) {
       pushLog(`agent selected: ${picked.name} (${picked.model})`, "info", picked.name)
     }
-  }, [pushLog])
+  }
 
-  const handleUpdateAgentWallet = useCallback((agentId: string, wallet: MoltbotAgent["wallet"]) => {
-    setAgents((prev) => {
-      const updated = prev.map((agent) => (agent.id === agentId ? { ...agent, wallet } : agent))
-      const updatedAgent = updated.find((agent) => agent.id === agentId)
-      if (updatedAgent && wallet?.publicKey) {
-        pushLog(`wallet linked: ${updatedAgent.name} -> ${wallet.publicKey.slice(0, 8)}...`, "success", updatedAgent.name)
-      }
-      return updated
-    })
-  }, [pushLog])
+  const handleUpdateAgentWallet = (agentId: string, wallet: MoltbotAgent["wallet"]) => {
+    setAgents((prev) => prev.map((agent) => (agent.id === agentId ? { ...agent, wallet } : agent)))
 
-  const handleAddTransaction = useCallback((tx: WalletTransaction) => {
+    const updatedAgent = agents.find((agent) => agent.id === agentId)
+    if (updatedAgent && wallet?.publicKey) {
+      pushLog(`wallet linked: ${updatedAgent.name} -> ${wallet.publicKey.slice(0, 8)}...`, "success", updatedAgent.name)
+    }
+  }
+
+  const handleAddTransaction = (tx: WalletTransaction) => {
     setTransactions((prev) => [tx, ...prev.slice(0, 99)])
     pushLog(`tx ${tx.fromName} -> ${tx.toName} (${tx.amount} XLM)`, "success", tx.fromName)
-  }, [pushLog])
+  }
 
   return (
     <div style={{ width: "100%", height: "100vh", display: "flex", overflow: "hidden", background: "#030712" }}>
