@@ -1,8 +1,9 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import type { Agent } from '@/lib/vendimia-types';
-import { WorkerSprite, TaskLabel } from './sprites';
+import { WorkerSprite, TaskLabel, WorkerHarvesting, WorkerWatering, WorkerWalking, OfficeWorker } from './sprites';
 
 interface AgentSpriteProps {
   agent: Agent;
@@ -11,6 +12,42 @@ interface AgentSpriteProps {
 }
 
 export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
+  const [walkFrame, setWalkFrame] = useState(0);
+
+  // Animate walking frames
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setWalkFrame(prev => (prev + 1) % 2);
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Select sprite based on task
+  function getWorkerSprite() {
+    const commonProps = {
+      skinColor: agent.skinColor || '#e8c39e',
+      hairColor: agent.hairColor || '#5c3d2e',
+      shirtColor: agent.shirtColor || '#4a6fa5',
+      size: 44,
+    };
+
+    switch (agent.task) {
+      case 'cosecha':
+        return <WorkerHarvesting {...commonProps} />;
+      case 'riego':
+        return <WorkerWatering {...commonProps} />;
+      case 'poda':
+        return <WorkerHarvesting {...commonProps} />;
+      case 'fermentacion':
+      case 'embotellado':
+        return <OfficeWorker {...commonProps} size={40} />;
+      case 'cata':
+        return <OfficeWorker {...commonProps} size={40} />;
+      default:
+        return <WorkerWalking {...commonProps} frame={walkFrame} />;
+    }
+  }
+
   return (
     <motion.div
       className="absolute cursor-pointer group"
@@ -52,7 +89,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
         />
       </motion.div>
 
-      {/* Agent Avatar - Pixel art SVG worker */}
+      {/* Agent Avatar - Dynamic worker sprite based on task */}
       <motion.div 
         className="relative"
         animate={isSelected ? {
@@ -60,13 +97,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
         } : {}}
         transition={{ duration: 1, repeat: Infinity }}
       >
-        <WorkerSprite
-          skinColor={agent.skinColor || '#e8c39e'}
-          hairColor={agent.hairColor || '#5c3d2e'}
-          shirtColor={agent.shirtColor || '#4a6fa5'}
-          size={44}
-          isWorking={agent.task === 'cosecha' || agent.task === 'poda' || agent.task === 'riego'}
-        />
+        {getWorkerSprite()}
         
         {/* Selection indicator */}
         {isSelected && (
