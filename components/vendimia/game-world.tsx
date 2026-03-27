@@ -15,6 +15,17 @@ interface GameWorldProps {
 // Scene backgrounds
 const sceneBackgrounds: Record<string, string> = {
   'plaza-central': '/scenes/plaza-central.jpg',
+  'vinedo': '/scenes/vinedo.jpg',
+  'fermentacion': '/scenes/fermentacion.jpg',
+  'oficina': '/scenes/oficina.jpg',
+};
+
+// Scene labels in Spanish
+const sceneLabels: Record<string, string> = {
+  'plaza-central': 'Plaza Central',
+  'vinedo': 'Viñedo',
+  'fermentacion': 'Sala de Fermentación',
+  'oficina': 'Oficina',
 };
 
 export function GameWorld({ agents, selectedAgent, onAgentClick, currentScene = 'plaza-central' }: GameWorldProps) {
