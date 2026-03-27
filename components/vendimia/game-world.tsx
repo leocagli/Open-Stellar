@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { useState, useEffect } from 'react';
 import type { Agent } from '@/lib/vendimia-types';
 import { AgentSprite } from './agent-sprite';
 
@@ -31,18 +32,67 @@ const sceneLabels: Record<string, string> = {
 export function GameWorld({ agents, selectedAgent, onAgentClick, currentScene = 'plaza-central' }: GameWorldProps) {
   const backgroundImage = sceneBackgrounds[currentScene];
   const sceneLabel = sceneLabels[currentScene] || 'Vendimia World';
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  // Track mouse position para parallax effect
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // Parallax offset basado en mouse position (subtle)
+  const parallaxX = (mousePos.x - window.innerWidth / 2) * 0.02;
+  const parallaxY = (mousePos.y - window.innerHeight / 2) * 0.02;
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      {/* Scene Background Image */}
-      {backgroundImage ? (
-        <Image
-          src={backgroundImage}
-          alt={`Escena: ${currentScene}`}
-          fill
-          className="object-cover"
-          priority
+      {/* Fondo base con gradiente atmosphere */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: currentScene === 'plaza-central' 
+            ? 'linear-gradient(180deg, #87ceeb 0%, #e0f4ff 50%, #d4a574 100%)'
+            : currentScene === 'vinedo'
+            ? 'linear-gradient(180deg, #87ceeb 0%, #d4a574 100%)'
+            : currentScene === 'bodega' || currentScene === 'fermentacion'
+            ? 'linear-gradient(180deg, #4a3728 0%, #8b7355 100%)'
+            : 'linear-gradient(180deg, #8b8b8b 0%, #c9b896 100%)',
+        }}
+      />
+
+      {/* Parallax Background Layer - Far */}
+      {currentScene === 'plaza-central' && (
+        <motion.div 
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 80px, rgba(255,255,255,0.1) 80px, rgba(255,255,255,0.1) 81px)',
+            backgroundSize: '200px 100%',
+            x: parallaxX * 0.5,
+            y: parallaxY * 0.5,
+          }}
         />
+      )}
+
+      {/* Scene Background Image con parallax */}
+      {backgroundImage ? (
+        <motion.div
+          className="absolute inset-0"
+          style={{
+            x: parallaxX * 0.8,
+            y: parallaxY * 0.8,
+          }}
+        >
+          <Image
+            src={backgroundImage}
+            alt={`Escena: ${currentScene}`}
+            fill
+            className="object-cover"
+            priority
+          />
+        </motion.div>
       ) : (
         <div 
           className="absolute inset-0"
@@ -50,15 +100,29 @@ export function GameWorld({ agents, selectedAgent, onAgentClick, currentScene = 
         />
       )}
 
-      {/* Agents - positioned on top of the scene */}
-      {agents.map((agent) => (
-        <AgentSprite
-          key={agent.id}
-          agent={agent}
-          isSelected={selectedAgent?.id === agent.id}
-          onClick={() => onAgentClick(agent)}
-        />
-      ))}
+      {/* Agents - positioned on top of the scene con depth sorting */}
+      <div className="absolute inset-0 pointer-events-none">
+        {agents
+          .sort((a, b) => a.y - b.y) // Depth sort: más arriba primero, más abajo último
+          .map((agent) => (
+            <div key={agent.id} className="pointer-events-auto">
+              <AgentSprite
+                agent={agent}
+                isSelected={selectedAgent?.id === agent.id}
+                onClick={() => onAgentClick(agent)}
+              />
+            </div>
+          ))}
+      </div>
+
+      {/* Fog/Atmosphere effect - profundidad visual */}
+      <motion.div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.1) 100%)',
+          mixBlendMode: 'multiply',
+        }}
+      />
 
       {/* Scene Label */}
       <motion.div 

@@ -81,6 +81,8 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   const [direction, setDirection] = useState<'front' | 'back' | 'left' | 'right'>('front');
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
+  const [bobbingOffset, setBobbingOffset] = useState(0);
+  const [time, setTime] = useState(0);
 
   // Animate walking frames mas fluido
   useEffect(() => {
@@ -90,15 +92,30 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Movimiento fluido aleatorio para todos los agentes
+  // Bobbing animation (breathing/idle movement) - game development classic
+  useEffect(() => {
+    let animFrame: number;
+    const animate = () => {
+      setTime(t => t + 0.02);
+      setBobbingOffset(Math.sin(time * 2) * 1.5); // Gentle bobbing
+      animFrame = requestAnimationFrame(animate);
+    };
+    animFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animFrame);
+  }, [time]);
+
+  // Movimiento fluido aleatorio para todos los agentes con influencia de profundidad
   useEffect(() => {
     const moveInterval = setInterval(() => {
-      // Movimiento sutil aleatorio entre -2 y 2 pixeles
-      setOffsetX(Math.random() * 4 - 2);
-      setOffsetY(Math.random() * 2 - 1);
-    }, 2000);
+      // Los NPCs más abajo (y más grande) tienen movimiento más lento y sutil
+      const depthFactor = agent.y / 100; // 0-1 basado en posicion Y
+      const speedVariation = 0.5 + depthFactor * 0.5; // Más lento si están más atrás
+      
+      setOffsetX((Math.random() - 0.5) * 3 * speedVariation);
+      setOffsetY((Math.random() - 0.5) * 1.5 * speedVariation);
+    }, 3000);
     return () => clearInterval(moveInterval);
-  }, []);
+  }, [agent.y]);
 
   // Cambiar direccion aleatoriamente para agentes con sprites de imagen
   useEffect(() => {
@@ -326,20 +343,27 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
     }
   }
 
+  // Depth-based scaling (perspectiva isometrica) - más abajo = más grande
+  const depthScale = 0.85 + (agent.y / 100) * 0.3;
+  
+  // Sombra dinámica: más oscura y alargada si está más arriba
+  const shadowScale = 0.6 + (agent.y / 100) * 0.4;
+  const shadowOffset = Math.max(8, 20 - agent.y * 0.15);
+
   return (
     <motion.div
       className="absolute cursor-pointer group"
       style={{ 
         left: `${agent.x}%`, 
         top: `${agent.y}%`,
-        zIndex: isSelected ? 20 : 10
+        zIndex: Math.round(agent.y * 100) // Depth sorting automático
       }}
       initial={{ scale: 0, opacity: 0, x: '-50%', y: '-50%' }}
       animate={{ 
-        scale: 1, 
+        scale: depthScale, 
         opacity: 1,
         x: `calc(-50% + ${offsetX}px)`,
-        y: `calc(-50% + ${offsetY}px)`,
+        y: `calc(-50% + ${bobbingOffset}px + ${offsetY}px)`,
       }}
       transition={{
         scale: { duration: 0.4, ease: "backOut" },
@@ -347,8 +371,8 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
         x: { duration: 1.5, ease: "easeInOut" },
         y: { duration: 1.5, ease: "easeInOut" },
       }}
-      whileHover={{ scale: 1.08, transition: { duration: 0.2 } }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: depthScale * 1.08, transition: { duration: 0.2 } }}
+      whileTap={{ scale: depthScale * 0.95 }}
       onClick={onClick}
     >
       {/* Task Label - Using pixel art SVG icons */}
@@ -385,6 +409,18 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
           ease: "easeInOut" 
         }}
       >
+        {/* Dynamic shadow - perspectiva y profundidad */}
+        <motion.div
+          className="absolute left-1/2 -translate-x-1/2 rounded-full opacity-40"
+          style={{
+            bottom: `-${shadowOffset}px`,
+            width: `${44 * shadowScale}px`,
+            height: `${8 * shadowScale}px`,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            filter: 'blur(3px)',
+          }}
+        />
+        
         {getWorkerSprite()}
         
         {/* Selection indicator */}
