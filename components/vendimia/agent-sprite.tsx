@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import type { Agent } from '@/lib/vendimia-types';
 import { WorkerSprite, TaskLabel, WorkerHarvesting, WorkerWatering, WorkerWalking, OfficeWorker } from './sprites';
 
@@ -11,8 +12,17 @@ interface AgentSpriteProps {
   isSelected?: boolean;
 }
 
+// Sprite direccional para Valentina (agente id: 1)
+const VALENTINA_SPRITES = {
+  front: '/sprites/worker-front.png',
+  back: '/sprites/worker-back.png',
+  left: '/sprites/worker-left.png',
+  right: '/sprites/worker-right.png',
+};
+
 export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   const [walkFrame, setWalkFrame] = useState(0);
+  const [direction, setDirection] = useState<'front' | 'back' | 'left' | 'right'>('front');
 
   // Animate walking frames
   useEffect(() => {
@@ -22,8 +32,40 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Select sprite based on task
+  // Cambiar direccion aleatoriamente para Valentina
+  useEffect(() => {
+    if (agent.id === '1') {
+      const dirInterval = setInterval(() => {
+        const dirs: Array<'front' | 'back' | 'left' | 'right'> = ['front', 'back', 'left', 'right'];
+        setDirection(dirs[Math.floor(Math.random() * dirs.length)]);
+      }, 3000);
+      return () => clearInterval(dirInterval);
+    }
+  }, [agent.id]);
+
+  // Sprite de imagen para Valentina (id: 1)
+  function getValentinaSprite() {
+    return (
+      <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
+        <Image
+          src={VALENTINA_SPRITES[direction]}
+          alt="Valentina"
+          fill
+          className="object-contain"
+          style={{ imageRendering: 'pixelated' }}
+          priority
+        />
+      </div>
+    );
+  }
+
+  // Select sprite based on task (para otros agentes)
   function getWorkerSprite() {
+    // Si es Valentina, usar el sprite de imagen
+    if (agent.id === '1') {
+      return getValentinaSprite();
+    }
+
     const commonProps = {
       skinColor: agent.skinColor || '#e8c39e',
       hairColor: agent.hairColor || '#5c3d2e',
