@@ -130,6 +130,7 @@ export function GameWorld({ agents, selectedAgent, onAgentClick, currentScene = 
                 agent={agent}
                 isSelected={selectedAgent?.id === agent.id}
                 onClick={() => onAgentClick(agent)}
+                currentScene={currentScene}
               />
             </div>
           ))}

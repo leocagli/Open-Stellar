@@ -10,6 +10,7 @@ interface AgentSpriteProps {
   agent: Agent;
   onClick?: () => void;
   isSelected?: boolean;
+  currentScene?: string;
 }
 
 // Sprites direccionales para agentes con imagen
@@ -76,7 +77,7 @@ const NPC010_SPRITES = {
   right: '/sprites/npc010-right.png',
 };
 
-export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
+export function AgentSprite({ agent, onClick, isSelected, currentScene = 'plaza-central' }: AgentSpriteProps) {
   const [walkFrame, setWalkFrame] = useState(0);
   const [direction, setDirection] = useState<'front' | 'back' | 'left' | 'right'>('front');
   const [offsetX, setOffsetX] = useState(0);
@@ -344,9 +345,19 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
   }
 
   // Depth-based scaling (perspectiva isometrica) - más abajo = más grande
-  // Rango más amplio para mejor proporción visual relativa al mapa
-  const baseScale = 0.9; // Escala base (personajes al frente)
-  const maxScale = 1.3; // Escala máxima (personajes al fondo)
+  // Rango de escala diferente según la escena
+  let baseScale = 0.9;  // Default para plaza-central
+  let maxScale = 1.3;
+  
+  // Ajustar escala según la escena
+  if (currentScene === 'plaza-central') {
+    baseScale = 0.7;  // Más pequeños en la plaza
+    maxScale = 1.0;
+  } else if (currentScene === 'vinedo' || currentScene === 'fermentacion' || currentScene === 'oficina') {
+    baseScale = 1.0;  // Más grandes en otros mapas
+    maxScale = 1.4;
+  }
+  
   const depthScale = baseScale + (agent.y / 100) * (maxScale - baseScale);
   
   // Sombra dinámica: más oscura y alargada si está más arriba
