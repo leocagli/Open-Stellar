@@ -2,9 +2,9 @@ import type { Agent, ChatMessage, Building } from './vendimia-types';
 
 export const initialAgents: Agent[] = [
   // Vinedo - cosecha, riego, poda
-  { id: '1', name: 'Valentina', avatar: '👩‍🌾', task: 'cosecha', location: 'vinedo', progress: 75, x: 25, y: 45, color: '#8B5CF6', skinColor: '#e8c39e', hairColor: '#5c3d2e', shirtColor: '#4a6fa5' },
-  { id: '3', name: 'Camila', avatar: '👩‍🌾', task: 'poda', location: 'vinedo', progress: 30, x: 45, y: 65, color: '#10B981', skinColor: '#c9a86c', hairColor: '#1a1a1a', shirtColor: '#2d5a27' },
-  { id: '11', name: 'Tomas', avatar: '👨‍🌾', task: 'cosecha', location: 'vinedo', progress: 55, x: 75, y: 45, color: '#F59E0B', skinColor: '#d4a574', hairColor: '#8b4513', shirtColor: '#8b3a62' },
+  { id: '1', name: 'Valentina', avatar: '👩‍🌾', task: 'cosecha', location: 'viñedo-norte', progress: 75, x: 25, y: 45, color: '#8B5CF6', skinColor: '#e8c39e', hairColor: '#5c3d2e', shirtColor: '#4a6fa5' },
+  { id: '3', name: 'Camila', avatar: '👩‍🌾', task: 'poda', location: 'viñedo-sur', progress: 30, x: 45, y: 65, color: '#10B981', skinColor: '#c9a86c', hairColor: '#1a1a1a', shirtColor: '#2d5a27' },
+  { id: '11', name: 'Tomas', avatar: '👨‍🌾', task: 'cosecha', location: 'viñedo-norte', progress: 55, x: 75, y: 45, color: '#F59E0B', skinColor: '#d4a574', hairColor: '#8b4513', shirtColor: '#8b3a62' },
   
   // Fermentacion - embotellado
   { id: '5', name: 'Santiago', avatar: '👨‍🍳', task: 'embotellado', location: 'bodega', progress: 55, x: 70, y: 60, color: '#6366F1', skinColor: '#d4a574', hairColor: '#4a3728', shirtColor: '#f5f5dc' },
@@ -15,7 +15,7 @@ export const initialAgents: Agent[] = [
   // Plaza - venta, cata, atención
   { id: '8', name: 'Rosita', avatar: '👩‍🍷', task: 'cata', location: 'plaza', progress: 40, x: 30, y: 45, color: '#3B82F6', skinColor: '#d4a574', hairColor: '#2c1810', shirtColor: '#4a6fa5' },
   { id: '10', name: 'Pancho', avatar: '👨‍🌾', task: 'venta', location: 'plaza', progress: 35, x: 70, y: 50, color: '#10B981', skinColor: '#c9a86c', hairColor: '#3d2914', shirtColor: '#f5f5dc' },
-  { id: '12', name: 'Marta', avatar: '👩‍🍳', task: 'atención', location: 'plaza', progress: 50, x: 40, y: 35, color: '#DC2626', skinColor: '#e8c39e', hairColor: '#8b4513', shirtColor: '#8b3a40' },
+  { id: '12', name: 'Marta', avatar: '👩‍🍳', task: 'venta', location: 'plaza', progress: 50, x: 40, y: 35, color: '#DC2626', skinColor: '#e8c39e', hairColor: '#8b4513', shirtColor: '#8b3a40' },
 ];
 
 export const buildings: Building[] = [
@@ -37,10 +37,9 @@ export const taskLabels: Record<string, { label: string; icon: string }> = {
   administracion: { label: 'Administracion', icon: '📋' },
   contabilidad: { label: 'Contabilidad', icon: '📊' },
   marketing: { label: 'Marketing', icon: '📢' },
-  // Plaza - cata, venta, atención
+  // Plaza - cata, venta
   cata: { label: 'Cata', icon: '🍷' },
   venta: { label: 'Venta', icon: '💰' },
-  atención: { label: 'Atención', icon: '🍺' },
   espera: { label: 'En espera', icon: '⏳' },
   descanso: { label: 'Descanso', icon: '😴' },
 };
@@ -70,10 +69,9 @@ export const taskToScene: Record<string, string> = {
   embotellado: 'fermentacion',
   // Oficina - administracion
   administracion: 'oficina',
-  // Plaza - cata, venta, atención
+  // Plaza - cata, venta
   cata: 'plaza-central',
   venta: 'plaza-central',
-  atención: 'plaza-central',
   espera: 'plaza-central',
   descanso: 'plaza-central',
 };

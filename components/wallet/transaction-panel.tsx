@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount, useChainId, useConnect, usePublicClient, useSendTransaction } from 'wagmi';
-import { injected } from 'wagmi/connectors';
 import { bscTestnet } from 'wagmi/chains';
 import { connectFreighter, getFreighterNetwork, getFreighterPublicKey, isFreighterInstalled, sendStellarPayment } from '@/lib/stellar-utils';
 import { isAddress, parseEther } from 'viem';
@@ -22,7 +21,7 @@ export function TransactionPanel() {
   const bnbChainId = useChainId();
   const bnbPublicClient = usePublicClient({ chainId: bscTestnet.id });
   const { sendTransactionAsync, isPending: isSendingBnb } = useSendTransaction();
-  const { connect, isPending: isConnectingBnb } = useConnect();
+  const { connect, connectors, isPending: isConnectingBnb } = useConnect();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'bnb' | 'stellar'>('bnb');
   const [txLogs, setTxLogs] = useState<TransactionLog[]>([]);
@@ -46,9 +45,22 @@ export function TransactionPanel() {
     ]);
   };
 
-  const openBnbWalletModal = async () => {
+  const metaMaskConnector = connectors.find((connector) => connector.id === 'injected');
+  const walletConnectConnector = connectors.find((connector) => connector.id === 'walletConnect');
+
+  const openBnbWalletModal = async (kind: 'metamask' | 'walletconnect' = 'metamask') => {
     try {
-      connect({ connector: injected() });
+      const connector = kind === 'walletconnect' ? walletConnectConnector : metaMaskConnector;
+      if (!connector) {
+        addLog({
+          type: 'bnb',
+          status: 'error',
+          message: `${kind} no disponible`,
+        });
+        return;
+      }
+
+      connect({ connector });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo conectar MetaMask';
       addLog({
@@ -77,7 +89,7 @@ export function TransactionPanel() {
 
   const handleBNBTransaction = async () => {
     if (!isConnected || !address) {
-      await openBnbWalletModal();
+      await openBnbWalletModal('metamask');
       return;
     }
 
@@ -360,21 +372,57 @@ export function TransactionPanel() {
                       disabled={!isConnected || isSendingBnb}
                     />
                   </div>
-                  <button
-                    onClick={handleBNBTransaction}
-                    disabled={isSendingBnb}
-                    className="w-full py-2 px-3 text-xs font-bold uppercase"
-                    style={{ 
-                      backgroundColor: !isSendingBnb ? '#f0b90b' : '#ccc',
-                      border: `2px solid ${!isSendingBnb ? '#c99b09' : '#999'}`,
-                      color: !isSendingBnb ? '#1e2026' : '#666',
-                      fontFamily: 'var(--font-vt323)',
-                      cursor: !isSendingBnb ? 'pointer' : 'not-allowed',
-                      boxShadow: !isSendingBnb ? '2px 2px 0 rgba(0,0,0,0.2)' : 'none'
-                    }}
-                  >
-                    {!isConnected ? 'Conectar MetaMask' : bnbChainId !== bscTestnet.id ? 'Red Incorrecta' : isSendingBnb || isConnectingBnb ? 'Confirmando...' : 'Enviar BNB'}
-                  </button>
+                  {!isConnected ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => openBnbWalletModal('metamask')}
+                        disabled={isSendingBnb || isConnectingBnb || !metaMaskConnector}
+                        className="w-full py-2 px-3 text-xs font-bold uppercase"
+                        style={{ 
+                          backgroundColor: !isSendingBnb && metaMaskConnector ? '#f0b90b' : '#ccc',
+                          border: `2px solid ${!isSendingBnb && metaMaskConnector ? '#c99b09' : '#999'}`,
+                          color: !isSendingBnb && metaMaskConnector ? '#1e2026' : '#666',
+                          fontFamily: 'var(--font-vt323)',
+                          cursor: !isSendingBnb && metaMaskConnector ? 'pointer' : 'not-allowed',
+                          boxShadow: !isSendingBnb && metaMaskConnector ? '2px 2px 0 rgba(0,0,0,0.2)' : 'none'
+                        }}
+                      >
+                        MetaMask
+                      </button>
+
+                      <button
+                        onClick={() => openBnbWalletModal('walletconnect')}
+                        disabled={isSendingBnb || isConnectingBnb || !walletConnectConnector}
+                        className="w-full py-2 px-3 text-xs font-bold uppercase"
+                        style={{ 
+                          backgroundColor: !isSendingBnb && walletConnectConnector ? '#4a3728' : '#ccc',
+                          border: `2px solid ${!isSendingBnb && walletConnectConnector ? '#2d221a' : '#999'}`,
+                          color: !isSendingBnb && walletConnectConnector ? '#fff' : '#666',
+                          fontFamily: 'var(--font-vt323)',
+                          cursor: !isSendingBnb && walletConnectConnector ? 'pointer' : 'not-allowed',
+                          boxShadow: !isSendingBnb && walletConnectConnector ? '2px 2px 0 rgba(0,0,0,0.2)' : 'none'
+                        }}
+                      >
+                        WalletConnect
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleBNBTransaction}
+                      disabled={isSendingBnb}
+                      className="w-full py-2 px-3 text-xs font-bold uppercase"
+                      style={{ 
+                        backgroundColor: !isSendingBnb ? '#f0b90b' : '#ccc',
+                        border: `2px solid ${!isSendingBnb ? '#c99b09' : '#999'}`,
+                        color: !isSendingBnb ? '#1e2026' : '#666',
+                        fontFamily: 'var(--font-vt323)',
+                        cursor: !isSendingBnb ? 'pointer' : 'not-allowed',
+                        boxShadow: !isSendingBnb ? '2px 2px 0 rgba(0,0,0,0.2)' : 'none'
+                      }}
+                    >
+                      {bnbChainId !== bscTestnet.id ? 'Red Incorrecta' : isSendingBnb || isConnectingBnb ? 'Confirmando...' : 'Enviar BNB'}
+                    </button>
+                  )}
                   {isConnected && bnbChainId !== bscTestnet.id && (
                     <p 
                       className="text-xs"

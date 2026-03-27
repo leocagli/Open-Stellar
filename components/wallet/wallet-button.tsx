@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAccount, useChainId, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
-import { injected } from 'wagmi/connectors'
 import { bscTestnet } from 'wagmi/chains'
 import { 
   connectFreighter, 
@@ -15,6 +14,7 @@ import {
 } from '@/lib/stellar-utils'
 
 type WalletType = 'bnb' | 'stellar' | null
+type BnbConnectorKind = 'metamask' | 'walletconnect'
 
 interface WalletState {
   bnb: {
@@ -44,7 +44,7 @@ export function WalletButton() {
   const { disconnect: disconnectBnb } = useDisconnect()
   const { switchChainAsync, isPending: isSwitchingBnb } = useSwitchChain()
   
-  const { connect, isPending: isConnectingBnb } = useConnect()
+  const { connect, connectors, isPending: isConnectingBnb } = useConnect()
 
   const syncFreighterState = useCallback(async () => {
     const installed = await isFreighterInstalled()
@@ -100,18 +100,26 @@ export function WalletButton() {
     }))
   }, [bnbAddress, isBnbConnected])
 
-  // Connect to BNB via MetaMask (injected)
-  const handleConnectBnb = useCallback(async () => {
+  const metaMaskConnector = connectors.find((connector) => connector.id === 'injected')
+  const walletConnectConnector = connectors.find((connector) => connector.id === 'walletConnect')
+
+  const handleConnectBnb = useCallback(async (kind: BnbConnectorKind) => {
+    const connector = kind === 'walletconnect' ? walletConnectConnector : metaMaskConnector
+    if (!connector) {
+      console.error(`[v0] Connector not available: ${kind}`)
+      return
+    }
+
     setIsConnecting('bnb')
     try {
-      connect({ connector: injected() })
+      connect({ connector })
     } catch (err) {
-      console.error('[v0] Error connecting MetaMask:', err)
+      console.error('[v0] Error connecting BNB wallet:', err)
     } finally {
       setIsConnecting(null)
       setShowDropdown(false)
     }
-  }, [connect])
+  }, [connect, metaMaskConnector, walletConnectConnector])
 
   // Connect to Stellar via Freighter
   const handleConnectStellar = useCallback(async () => {
@@ -285,16 +293,31 @@ export function WalletButton() {
                   )}
                 </div>
               ) : (
-                <PixelButton
-                  onClick={handleConnectBnb}
-                  disabled={isConnecting === 'bnb' || isConnectingBnb}
-                  variant="bnb"
-                  fullWidth
-                >
-                  {isConnecting === 'bnb' || isConnectingBnb
-                    ? 'Conectando...'
-                    : 'MetaMask'}
-                </PixelButton>
+                <div className="space-y-2">
+                  <PixelButton
+                    onClick={() => handleConnectBnb('metamask')}
+                    disabled={isConnecting === 'bnb' || isConnectingBnb || !metaMaskConnector}
+                    variant="bnb"
+                    fullWidth
+                  >
+                    {isConnecting === 'bnb' || isConnectingBnb
+                      ? 'Conectando...'
+                      : metaMaskConnector
+                      ? 'MetaMask'
+                      : 'MetaMask no disponible'}
+                  </PixelButton>
+
+                  <PixelButton
+                    onClick={() => handleConnectBnb('walletconnect')}
+                    disabled={isConnecting === 'bnb' || isConnectingBnb || !walletConnectConnector}
+                    variant="default"
+                    fullWidth
+                  >
+                    {walletConnectConnector
+                      ? 'WalletConnect'
+                      : 'WalletConnect desactivado'}
+                  </PixelButton>
+                </div>
               )}
             </div>
 

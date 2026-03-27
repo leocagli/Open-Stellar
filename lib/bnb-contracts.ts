@@ -43,11 +43,58 @@ export const SIMPLE_TOKEN_ABI = [
   },
 ] as const;
 
+export const ESCROW_MILESTONE_ABI = [
+  {
+    inputs: [
+      { name: 'payee', type: 'address' },
+      { name: 'deadline', type: 'uint64' },
+      { name: 'metadataURI', type: 'string' },
+    ],
+    name: 'createDeal',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'dealId', type: 'uint256' }],
+    name: 'release',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'dealId', type: 'uint256' }],
+    name: 'refund',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const;
+
+export const X402_SERVICE_PAYWALL_ABI = [
+  {
+    inputs: [{ name: 'paymentRefHash', type: 'bytes32' }],
+    name: 'settle402',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'paymentRefHash', type: 'bytes32' }],
+    name: 'hasPaid',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
+
 // Direcciones de contratos en BNB Smart Chain Testnet
 export const BNB_TESTNET_CONTRACTS = {
   // Reemplazar con direcciones de tus contratos desplegados
   SIMPLE_TOKEN: '0x0000000000000000000000000000000000000000', // Placeholder
   VENDIMIA_TOKEN: '0x0000000000000000000000000000000000000000', // Placeholder
+  ESCROW_MILESTONE: '0x0000000000000000000000000000000000000000',
+  X402_SERVICE_PAYWALL: '0x0000000000000000000000000000000000000000',
 };
 
 // Chain ID y configuración
