@@ -177,13 +177,13 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
     );
   }
 
-  // Sprite de imagen para NPC007/Roberto sommelier cata (id: 8)
+  // Sprite de imagen para NPC007/Rosita sommelier cata (id: 8)
   function getNPC007Sprite() {
     return (
       <div className="relative w-11 h-14" style={{ imageRendering: 'pixelated' }}>
         <Image
           src={NPC007_SPRITES[direction]}
-          alt="Roberto"
+          alt="Rosita"
           fill
           className="object-contain"
           style={{ imageRendering: 'pixelated' }}
@@ -226,7 +226,7 @@ export function AgentSprite({ agent, onClick, isSelected }: AgentSpriteProps) {
       return getNPC006Sprite();
     }
 
-    // Si es Roberto (NPC007 sommelier cata), usar el sprite del sommelier
+    // Si es Rosita (NPC007 sommelier cata), usar el sprite del sommelier
     if (agent.id === '8') {
       return getNPC007Sprite();
     }

@@ -16,7 +16,7 @@ export const initialAgents: Agent[] = [
   { id: '7', name: 'Elena', avatar: '👩‍💼', task: 'contabilidad', location: 'oficina', progress: 80, x: 65, y: 45, color: '#8B5CF6', skinColor: '#f5d6c6', hairColor: '#5c3d2e', shirtColor: '#2d5a27' },
   
   // Plaza - venta, cata, espera
-  { id: '8', name: 'Roberto', avatar: '👨‍🍷', task: 'cata', location: 'plaza', progress: 40, x: 30, y: 45, color: '#3B82F6', skinColor: '#d4a574', hairColor: '#2c1810', shirtColor: '#4a6fa5' },
+  { id: '8', name: 'Rosita', avatar: '👩‍🍷', task: 'cata', location: 'plaza', progress: 40, x: 30, y: 45, color: '#3B82F6', skinColor: '#d4a574', hairColor: '#2c1810', shirtColor: '#4a6fa5' },
   { id: '9', name: 'Fernando', avatar: '👨‍💼', task: 'venta', location: 'plaza', progress: 65, x: 50, y: 55, color: '#EC4899', skinColor: '#e8c39e', hairColor: '#8b4513', shirtColor: '#8b2942' },
   { id: '10', name: 'Pancho', avatar: '👨‍🌾', task: 'venta', location: 'plaza', progress: 35, x: 70, y: 50, color: '#10B981', skinColor: '#c9a86c', hairColor: '#3d2914', shirtColor: '#f5f5dc' },
 ];
