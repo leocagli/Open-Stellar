@@ -1,11 +1,5 @@
-import { VendimiaWorld } from '@/components/vendimia/vendimia-world';
-import { TransactionPanel } from '@/components/wallet/transaction-panel';
+import { IntegratedHome } from '@/components/integrated-home';
 
 export default function Home() {
-  return (
-    <>
-      <VendimiaWorld />
-      <TransactionPanel />
-    </>
-  );
+  return <IntegratedHome />;
 }

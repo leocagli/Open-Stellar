@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAccount, useDisconnect } from 'wagmi'
-import { useAppKitReady } from './wallet-provider'
+import { useAccount, useChainId, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
+import { bscTestnet } from 'wagmi/chains'
 import { 
   connectFreighter, 
   getFreighterPublicKey, 
@@ -14,6 +14,7 @@ import {
 } from '@/lib/stellar-utils'
 
 type WalletType = 'bnb' | 'stellar' | null
+type BnbConnectorKind = 'metamask' | 'walletconnect'
 
 interface WalletState {
   bnb: {
@@ -29,6 +30,8 @@ interface WalletState {
 
 export function WalletButton() {
   const [showDropdown, setShowDropdown] = useState(false)
+  const [stellarManuallyDisconnected, setStellarManuallyDisconnected] = useState(false)
+  const stellarManuallyDisconnectedRef = useRef(false)
   const [walletState, setWalletState] = useState<WalletState>({
     bnb: { address: null, connected: false },
     stellar: { publicKey: null, network: null, connected: false }
@@ -38,30 +41,54 @@ export function WalletButton() {
 
   // Wagmi hooks (siempre disponibles)
   const { address: bnbAddress, isConnected: isBnbConnected } = useAccount()
+  const bnbChainId = useChainId()
   const { disconnect: disconnectBnb } = useDisconnect()
+  const { switchChainAsync, isPending: isSwitchingBnb } = useSwitchChain()
   
-  // Check if AppKit is ready
-  const appKitReady = useAppKitReady()
+  const { connect, connectors, isPending: isConnectingBnb } = useConnect()
 
-  // Check Freighter availability on mount
-  useEffect(() => {
-    async function checkFreighter() {
-      const installed = await isFreighterInstalled()
-      setFreighterAvailable(installed)
-      
-      if (installed) {
-        const publicKey = await getFreighterPublicKey()
-        if (publicKey) {
-          const network = await getFreighterNetwork()
-          setWalletState(prev => ({
-            ...prev,
-            stellar: { publicKey, network, connected: true }
-          }))
-        }
-      }
+  const syncFreighterState = useCallback(async () => {
+    const installed = await isFreighterInstalled()
+    setFreighterAvailable(installed)
+
+    if (stellarManuallyDisconnectedRef.current) {
+      setWalletState(prev => ({
+        ...prev,
+        stellar: { publicKey: null, network: null, connected: false }
+      }))
+      return
     }
-    checkFreighter()
+
+    if (!installed) {
+      setWalletState(prev => ({
+        ...prev,
+        stellar: { publicKey: null, network: null, connected: false }
+      }))
+      return
+    }
+
+    const publicKey = await getFreighterPublicKey()
+    if (!publicKey) {
+      setWalletState(prev => ({
+        ...prev,
+        stellar: { publicKey: null, network: null, connected: false }
+      }))
+      return
+    }
+
+    const network = await getFreighterNetwork()
+    setWalletState(prev => ({
+      ...prev,
+      stellar: { publicKey, network, connected: true }
+    }))
   }, [])
+
+  // Keep Freighter state in sync like wagmi does for EVM wallets
+  useEffect(() => {
+    syncFreighterState()
+    const interval = window.setInterval(syncFreighterState, 8000)
+    return () => window.clearInterval(interval)
+  }, [syncFreighterState])
 
   // Sync BNB connection state
   useEffect(() => {
@@ -74,58 +101,61 @@ export function WalletButton() {
     }))
   }, [bnbAddress, isBnbConnected])
 
-  // Connect to BNB via WalletConnect
-  const handleConnectBnb = useCallback(async () => {
-    if (!appKitReady) {
-      console.warn('[v0] AppKit not ready - missing NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID')
+  const metaMaskConnector = connectors.find((connector) => connector.id === 'injected')
+  const walletConnectConnector = connectors.find((connector) => connector.id === 'walletConnect')
+
+  const handleConnectBnb = useCallback(async (kind: BnbConnectorKind) => {
+    const connector = kind === 'walletconnect' ? walletConnectConnector : metaMaskConnector
+    if (!connector) {
+      console.error(`[v0] Connector not available: ${kind}`)
       return
     }
-    
+
     setIsConnecting('bnb')
     try {
-      const { useAppKit } = await import('@reown/appkit/react')
-      // This is a workaround - we need to use the modal directly
-      const appKit = (window as any).appKit
-      if (appKit?.open) {
-        await appKit.open()
-      } else {
-        // Fallback - try to import and use directly
-        const { open } = useAppKit()
-        await open()
-      }
+      await connect({ connector })
     } catch (err) {
-      console.error('[v0] Error connecting BNB wallet:', err)
+      const safeErr = err instanceof Error ? err.message.replace(/[\r\n]/g, ' ') : 'Unknown error'
+      console.error('[v0] Error connecting BNB wallet:', safeErr)
     } finally {
       setIsConnecting(null)
       setShowDropdown(false)
     }
-  }, [appKitReady])
+  }, [connect, metaMaskConnector, walletConnectConnector])
 
   // Connect to Stellar via Freighter
   const handleConnectStellar = useCallback(async () => {
     setIsConnecting('stellar')
     try {
+      setStellarManuallyDisconnected(false)
+      stellarManuallyDisconnectedRef.current = false
       const { publicKey, error } = await connectFreighter()
       
       if (error) {
-        console.error('[v0] Freighter error:', error)
+        const safeError = error.replace(/[\r\n]/g, ' ')
+        console.error('[v0] Freighter error:', safeError)
         return
       }
 
       if (publicKey) {
-        const network = await getFreighterNetwork()
-        setWalletState(prev => ({
-          ...prev,
-          stellar: { publicKey, network, connected: true }
-        }))
+        await syncFreighterState()
       }
     } catch (err) {
-      console.error('[v0] Error connecting Stellar wallet:', err)
+      const safeErr = err instanceof Error ? err.message.replace(/[\r\n]/g, ' ') : 'Unknown error'
+      console.error('[v0] Error connecting Stellar wallet:', safeErr)
     } finally {
       setIsConnecting(null)
       setShowDropdown(false)
     }
-  }, [])
+  }, [syncFreighterState])
+
+  const handleSwitchBnbTestnet = useCallback(async () => {
+    try {
+      await switchChainAsync({ chainId: bscTestnet.id })
+    } catch (error) {
+      console.error('[v0] Failed switching to BNB testnet:', error)
+    }
+  }, [switchChainAsync])
 
   // Disconnect handlers
   const handleDisconnectBnb = useCallback(() => {
@@ -137,6 +167,8 @@ export function WalletButton() {
   }, [disconnectBnb])
 
   const handleDisconnectStellar = useCallback(() => {
+    setStellarManuallyDisconnected(true)
+    stellarManuallyDisconnectedRef.current = true
     disconnectFreighter()
     setWalletState(prev => ({
       ...prev,
@@ -150,6 +182,8 @@ export function WalletButton() {
   }
 
   const hasAnyConnection = walletState.bnb.connected || walletState.stellar.connected
+  const bnbOnTestnet = !walletState.bnb.connected || bnbChainId === bscTestnet.id
+  const stellarOnTestnet = !walletState.stellar.connected || walletState.stellar.network === 'TESTNET'
 
   // Pixel art styled button colors
   const buttonBg = hasAnyConnection ? '#2d5a27' : '#4a3728'
@@ -228,34 +262,68 @@ export function WalletButton() {
               </div>
               
               {walletState.bnb.connected && walletState.bnb.address ? (
-                <div className="flex items-center justify-between gap-2">
-                  <span 
-                    className="text-xs truncate"
-                    style={{ fontFamily: 'var(--font-vt323)', color: '#666' }}
-                  >
-                    {formatAddress(walletState.bnb.address)}
-                  </span>
-                  <PixelButton 
-                    onClick={handleDisconnectBnb}
-                    variant="danger"
-                    small
-                  >
-                    X
-                  </PixelButton>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span 
+                      className="text-xs truncate"
+                      style={{ fontFamily: 'var(--font-vt323)', color: '#666' }}
+                    >
+                      {formatAddress(walletState.bnb.address)}
+                    </span>
+                    <PixelButton 
+                      onClick={handleDisconnectBnb}
+                      variant="danger"
+                      small
+                    >
+                      X
+                    </PixelButton>
+                  </div>
+
+                  {!bnbOnTestnet && (
+                    <>
+                      <div 
+                        className="text-xs"
+                        style={{ fontFamily: 'var(--font-vt323)', color: '#8b2942' }}
+                      >
+                        Red incorrecta: usa BNB Testnet
+                      </div>
+                      <PixelButton
+                        onClick={handleSwitchBnbTestnet}
+                        disabled={isSwitchingBnb}
+                        variant="bnb"
+                        fullWidth
+                      >
+                        {isSwitchingBnb ? 'Cambiando...' : 'Cambiar a Testnet'}
+                      </PixelButton>
+                    </>
+                  )}
                 </div>
               ) : (
-                <PixelButton
-                  onClick={handleConnectBnb}
-                  disabled={isConnecting === 'bnb' || !appKitReady}
-                  variant="bnb"
-                  fullWidth
-                >
-                  {!appKitReady 
-                    ? 'Config Pendiente' 
-                    : isConnecting === 'bnb' 
-                    ? 'Conectando...' 
-                    : 'WalletConnect'}
-                </PixelButton>
+                <div className="space-y-2">
+                  <PixelButton
+                    onClick={() => handleConnectBnb('metamask')}
+                    disabled={isConnecting === 'bnb' || isConnectingBnb || !metaMaskConnector}
+                    variant="bnb"
+                    fullWidth
+                  >
+                    {isConnecting === 'bnb' || isConnectingBnb
+                      ? 'Conectando...'
+                      : metaMaskConnector
+                      ? 'MetaMask'
+                      : 'MetaMask no disponible'}
+                  </PixelButton>
+
+                  <PixelButton
+                    onClick={() => handleConnectBnb('walletconnect')}
+                    disabled={isConnecting === 'bnb' || isConnectingBnb || !walletConnectConnector}
+                    variant="default"
+                    fullWidth
+                  >
+                    {walletConnectConnector
+                      ? 'WalletConnect'
+                      : 'WalletConnect desactivado'}
+                  </PixelButton>
+                </div>
               )}
             </div>
 
@@ -275,33 +343,46 @@ export function WalletButton() {
               </div>
               
               {walletState.stellar.connected && walletState.stellar.publicKey ? (
-                <div className="flex items-center justify-between gap-2">
-                  <span 
-                    className="text-xs truncate"
-                    style={{ fontFamily: 'var(--font-vt323)', color: '#666' }}
-                  >
-                    {formatAddress(walletState.stellar.publicKey)}
-                  </span>
-                  <PixelButton 
-                    onClick={handleDisconnectStellar}
-                    variant="danger"
-                    small
-                  >
-                    X
-                  </PixelButton>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span 
+                      className="text-xs truncate"
+                      style={{ fontFamily: 'var(--font-vt323)', color: '#666' }}
+                    >
+                      {formatAddress(walletState.stellar.publicKey)}
+                    </span>
+                    <PixelButton 
+                      onClick={handleDisconnectStellar}
+                      variant="danger"
+                      small
+                    >
+                      X
+                    </PixelButton>
+                  </div>
+
+                  {!stellarOnTestnet && (
+                    <div 
+                      className="text-xs"
+                      style={{ fontFamily: 'var(--font-vt323)', color: '#8b2942' }}
+                    >
+                      Cambia Freighter a Stellar Testnet
+                    </div>
+                  )}
                 </div>
               ) : (
                 <PixelButton
                   onClick={handleConnectStellar}
-                  disabled={isConnecting === 'stellar' || !freighterAvailable}
+                  disabled={isConnecting === 'stellar'}
                   variant="stellar"
                   fullWidth
                 >
                   {!freighterAvailable 
-                    ? 'Instalar Freighter' 
+                    ? 'Instalar / Reintentar' 
                     : isConnecting === 'stellar' 
                     ? 'Conectando...' 
-                    : 'Freighter'}
+                    : stellarManuallyDisconnected
+                    ? 'Reconectar Freighter'
+                    : 'Conectar Freighter'}
                 </PixelButton>
               )}
               

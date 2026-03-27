@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount } from 'wagmi';
+import { useAccount, useChainId, useConnect, usePublicClient, useSendTransaction, useSwitchChain } from 'wagmi';
+import { bscTestnet } from 'wagmi/chains';
+import { connectFreighter, getFreighterNetwork, getFreighterPublicKey, isFreighterInstalled, sendStellarPayment } from '@/lib/stellar-utils';
+import { isAddress, parseEther } from 'viem';
 
 interface TransactionLog {
   id: string;
@@ -15,11 +18,22 @@ interface TransactionLog {
 
 export function TransactionPanel() {
   const { address, isConnected } = useAccount();
+  const bnbChainId = useChainId();
+  const bnbPublicClient = usePublicClient({ chainId: bscTestnet.id });
+  const { sendTransactionAsync, isPending: isSendingBnb } = useSendTransaction();
+  const { connect, connectors, isPending: isConnectingBnb } = useConnect();
+  const { switchChainAsync, isPending: isSwitchingChain } = useSwitchChain();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'bnb' | 'stellar'>('bnb');
   const [txLogs, setTxLogs] = useState<TransactionLog[]>([]);
   const [bnbAmount, setBnbAmount] = useState('0.01');
+  const [bnbRecipient, setBnbRecipient] = useState('');
   const [stellarAmount, setStellarAmount] = useState('10');
+  const [stellarRecipient, setStellarRecipient] = useState('');
+  const [isSendingStellar, setIsSendingStellar] = useState(false);
+  const [isConnectingStellar, setIsConnectingStellar] = useState(false);
+  const bnbTestnetReady = isConnected && bnbChainId === bscTestnet.id;
+  const bnbDefaultRecipient = address || '';
 
   const addLog = (log: Omit<TransactionLog, 'id' | 'timestamp'>) => {
     setTxLogs((prev) => [
@@ -32,12 +46,79 @@ export function TransactionPanel() {
     ]);
   };
 
-  const handleBNBTransaction = async () => {
-    if (!isConnected || !address) {
+  const metaMaskConnector = connectors.find((connector) => connector.id === 'injected');
+  const walletConnectConnector = connectors.find((connector) => connector.id === 'walletConnect');
+
+  const openBnbWalletModal = async (kind: 'metamask' | 'walletconnect' = 'metamask') => {
+    try {
+      const connector = kind === 'walletconnect' ? walletConnectConnector : metaMaskConnector;
+      if (!connector) {
+        addLog({
+          type: 'bnb',
+          status: 'error',
+          message: `${kind} no disponible`,
+        });
+        return;
+      }
+
+      connect({ connector });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo conectar MetaMask';
       addLog({
         type: 'bnb',
         status: 'error',
-        message: 'Wallet no conectado',
+        message: message.slice(0, 80),
+      });
+    }
+  };
+
+  const handleConnectStellar = async () => {
+    setIsConnectingStellar(true);
+    try {
+      const { error } = await connectFreighter();
+      if (error) {
+        addLog({
+          type: 'stellar',
+          status: 'error',
+          message: error.slice(0, 80),
+        });
+      }
+    } finally {
+      setIsConnectingStellar(false);
+    }
+  };
+
+  const handleBNBTransaction = async () => {
+    if (!isConnected || !address) {
+      await openBnbWalletModal('metamask');
+      return;
+    }
+
+    if (bnbChainId !== bscTestnet.id) {
+      addLog({
+        type: 'bnb',
+        status: 'error',
+        message: 'Cambia a BNB Testnet (chain 97)',
+      });
+      return;
+    }
+
+    const recipient = (bnbRecipient || bnbDefaultRecipient).trim();
+    if (!isAddress(recipient)) {
+      addLog({
+        type: 'bnb',
+        status: 'error',
+        message: 'Direccion BNB invalida',
+      });
+      return;
+    }
+
+    const amountNum = Number(bnbAmount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      addLog({
+        type: 'bnb',
+        status: 'error',
+        message: 'Monto BNB invalido',
       });
       return;
     }
@@ -48,21 +129,36 @@ export function TransactionPanel() {
       message: `Enviando ${bnbAmount} BNB...`,
     });
 
-    // Simulated transaction
-    setTimeout(() => {
-      const mockTxHash = '0x' + Math.random().toString(16).substring(2, 18);
+    try {
+      const txHash = await sendTransactionAsync({
+        to: recipient as `0x${string}`,
+        value: parseEther(bnbAmount),
+        chainId: bscTestnet.id,
+      });
+
+      if (bnbPublicClient) {
+        await bnbPublicClient.waitForTransactionReceipt({ hash: txHash });
+      }
+
       addLog({
         type: 'bnb',
         status: 'success',
         message: `${bnbAmount} BNB enviados`,
-        txHash: mockTxHash,
+        txHash,
       });
-    }, 2000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error enviando BNB';
+      addLog({
+        type: 'bnb',
+        status: 'error',
+        message: message.slice(0, 80),
+      });
+    }
   };
 
   const handleStellarTransaction = async () => {
-    const freighter = (window as any).freighter;
-    if (!freighter) {
+    const installed = await isFreighterInstalled();
+    if (!installed) {
       addLog({
         type: 'stellar',
         status: 'error',
@@ -72,12 +168,38 @@ export function TransactionPanel() {
     }
 
     try {
-      const publicKey = await freighter.getPublicKey();
+      const publicKey = await getFreighterPublicKey();
       if (!publicKey) {
+        await handleConnectStellar();
+        return;
+      }
+
+      const network = await getFreighterNetwork();
+      if (network !== 'TESTNET') {
         addLog({
           type: 'stellar',
           status: 'error',
-          message: 'Wallet no conectado',
+          message: 'Cambia Freighter a TESTNET',
+        });
+        return;
+      }
+
+      const destination = (stellarRecipient || publicKey).trim();
+      if (!destination) {
+        addLog({
+          type: 'stellar',
+          status: 'error',
+          message: 'Direccion Stellar requerida',
+        });
+        return;
+      }
+
+      const amountNum = Number(stellarAmount);
+      if (!Number.isFinite(amountNum) || amountNum <= 0) {
+        addLog({
+          type: 'stellar',
+          status: 'error',
+          message: 'Monto XLM invalido',
         });
         return;
       }
@@ -88,22 +210,38 @@ export function TransactionPanel() {
         message: `Enviando ${stellarAmount} XLM...`,
       });
 
-      // Simulated transaction
-      setTimeout(() => {
-        const mockTxHash = 'tx' + Math.random().toString(36).substring(2, 18);
+      setIsSendingStellar(true);
+      const { txHash, error } = await sendStellarPayment({
+        sourcePublicKey: publicKey,
+        destinationPublicKey: destination,
+        amount: stellarAmount,
+        network: 'TESTNET',
+      });
+
+      if (error || !txHash) {
+        addLog({
+          type: 'stellar',
+          status: 'error',
+          message: (error || 'Error enviando XLM').slice(0, 80),
+        });
+        return;
+      }
+
         addLog({
           type: 'stellar',
           status: 'success',
           message: `${stellarAmount} XLM enviados`,
-          txHash: mockTxHash,
+          txHash,
         });
-      }, 2000);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error de conexion'
       addLog({
         type: 'stellar',
         status: 'error',
-        message: 'Error de conexion',
+        message: message.slice(0, 80),
       });
+    } finally {
+      setIsSendingStellar(false);
     }
   };
 
@@ -112,7 +250,7 @@ export function TransactionPanel() {
       {/* Toggle button - pixel style */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-4 right-4 z-50 px-3 py-2 flex items-center gap-2"
+        className="fixed top-16 right-4 z-50 px-3 py-2 flex items-center gap-2"
         style={{
           backgroundColor: '#4a3728',
           border: '3px solid #2d221a',
@@ -137,7 +275,7 @@ export function TransactionPanel() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 300, opacity: 0 }}
             transition={{ type: 'spring', damping: 25 }}
-            className="fixed bottom-16 right-4 z-40 w-72"
+            className="fixed top-28 right-4 z-40 w-72"
             style={{
               backgroundColor: '#f5e6d3',
               border: '4px solid #4a3728',
@@ -197,6 +335,27 @@ export function TransactionPanel() {
                       className="block text-xs font-bold mb-1"
                       style={{ fontFamily: 'var(--font-vt323)', color: '#4a3728' }}
                     >
+                      Destino BNB
+                    </label>
+                    <input
+                      type="text"
+                      value={bnbRecipient}
+                      onChange={(e) => setBnbRecipient(e.target.value)}
+                      placeholder={bnbDefaultRecipient || '0x...'}
+                      className="w-full px-2 py-1 text-xs mb-2"
+                      style={{
+                        backgroundColor: '#fff',
+                        border: '2px solid #4a3728',
+                        fontFamily: 'var(--font-vt323)',
+                        color: '#4a3728'
+                      }}
+                      disabled={!isConnected || isSendingBnb}
+                    />
+
+                    <label 
+                      className="block text-xs font-bold mb-1"
+                      style={{ fontFamily: 'var(--font-vt323)', color: '#4a3728' }}
+                    >
                       Cantidad BNB
                     </label>
                     <input
@@ -212,30 +371,118 @@ export function TransactionPanel() {
                         fontFamily: 'var(--font-vt323)',
                         color: '#4a3728'
                       }}
-                      disabled={!isConnected}
+                      disabled={!isConnected || isSendingBnb}
                     />
                   </div>
-                  <button
-                    onClick={handleBNBTransaction}
-                    disabled={!isConnected}
-                    className="w-full py-2 px-3 text-xs font-bold uppercase"
-                    style={{ 
-                      backgroundColor: isConnected ? '#f0b90b' : '#ccc',
-                      border: `2px solid ${isConnected ? '#c99b09' : '#999'}`,
-                      color: isConnected ? '#1e2026' : '#666',
-                      fontFamily: 'var(--font-vt323)',
-                      cursor: isConnected ? 'pointer' : 'not-allowed',
-                      boxShadow: isConnected ? '2px 2px 0 rgba(0,0,0,0.2)' : 'none'
-                    }}
-                  >
-                    {isConnected ? 'Enviar BNB' : 'Conectar Wallet'}
-                  </button>
+                  {!isConnected ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => openBnbWalletModal('metamask')}
+                        disabled={isSendingBnb || isConnectingBnb || !metaMaskConnector}
+                        className="w-full py-2 px-3 text-xs font-bold uppercase"
+                        style={{ 
+                          backgroundColor: !isSendingBnb && metaMaskConnector ? '#f0b90b' : '#ccc',
+                          border: `2px solid ${!isSendingBnb && metaMaskConnector ? '#c99b09' : '#999'}`,
+                          color: !isSendingBnb && metaMaskConnector ? '#1e2026' : '#666',
+                          fontFamily: 'var(--font-vt323)',
+                          cursor: !isSendingBnb && metaMaskConnector ? 'pointer' : 'not-allowed',
+                          boxShadow: !isSendingBnb && metaMaskConnector ? '2px 2px 0 rgba(0,0,0,0.2)' : 'none'
+                        }}
+                      >
+                        MetaMask
+                      </button>
+
+                      <button
+                        onClick={() => openBnbWalletModal('walletconnect')}
+                        disabled={isSendingBnb || isConnectingBnb || !walletConnectConnector}
+                        className="w-full py-2 px-3 text-xs font-bold uppercase"
+                        style={{ 
+                          backgroundColor: !isSendingBnb && walletConnectConnector ? '#4a3728' : '#ccc',
+                          border: `2px solid ${!isSendingBnb && walletConnectConnector ? '#2d221a' : '#999'}`,
+                          color: !isSendingBnb && walletConnectConnector ? '#fff' : '#666',
+                          fontFamily: 'var(--font-vt323)',
+                          cursor: !isSendingBnb && walletConnectConnector ? 'pointer' : 'not-allowed',
+                          boxShadow: !isSendingBnb && walletConnectConnector ? '2px 2px 0 rgba(0,0,0,0.2)' : 'none'
+                        }}
+                      >
+                        WalletConnect
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleBNBTransaction}
+                      disabled={isSendingBnb}
+                      className="w-full py-2 px-3 text-xs font-bold uppercase"
+                      style={{ 
+                        backgroundColor: !isSendingBnb ? '#f0b90b' : '#ccc',
+                        border: `2px solid ${!isSendingBnb ? '#c99b09' : '#999'}`,
+                        color: !isSendingBnb ? '#1e2026' : '#666',
+                        fontFamily: 'var(--font-vt323)',
+                        cursor: !isSendingBnb ? 'pointer' : 'not-allowed',
+                        boxShadow: !isSendingBnb ? '2px 2px 0 rgba(0,0,0,0.2)' : 'none'
+                      }}
+                    >
+                      {bnbChainId !== bscTestnet.id ? 'Red Incorrecta' : isSendingBnb || isConnectingBnb ? 'Confirmando...' : 'Enviar BNB'}
+                    </button>
+                  )}
+                  {isConnected && bnbChainId !== bscTestnet.id && (
+                    <div className="space-y-2">
+                      <p 
+                        className="text-xs"
+                        style={{ fontFamily: 'var(--font-vt323)', color: '#8b2942' }}
+                      >
+                        Debe estar en BNB Testnet para operar.
+                      </p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await switchChainAsync({ chainId: bscTestnet.id });
+                          } catch {
+                            addLog({ type: 'bnb', status: 'error', message: 'No se pudo cambiar de red' });
+                          }
+                        }}
+                        disabled={isSwitchingChain}
+                        className="w-full py-2 px-3 text-xs font-bold uppercase"
+                        style={{ 
+                          backgroundColor: !isSwitchingChain ? '#4a3728' : '#ccc',
+                          border: `2px solid ${!isSwitchingChain ? '#2d221a' : '#999'}`,
+                          color: !isSwitchingChain ? '#fff' : '#666',
+                          fontFamily: 'var(--font-vt323)',
+                          cursor: !isSwitchingChain ? 'pointer' : 'not-allowed',
+                          boxShadow: !isSwitchingChain ? '2px 2px 0 rgba(0,0,0,0.2)' : 'none'
+                        }}
+                      >
+                        {isSwitchingChain ? 'Cambiando...' : 'Cambiar a BNB Testnet'}
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
 
               {activeTab === 'stellar' && (
                 <>
                   <div>
+                    <label 
+                      className="block text-xs font-bold mb-1"
+                      style={{ fontFamily: 'var(--font-vt323)', color: '#4a3728' }}
+                    >
+                      Destino Stellar
+                    </label>
+                    <input
+                      type="text"
+                      value={stellarRecipient}
+                      onChange={(e) => setStellarRecipient(e.target.value)}
+                      placeholder="G..."
+                      className="w-full px-2 py-1 text-xs mb-2"
+                      style={{
+                        backgroundColor: '#fff',
+                        border: '2px solid #4a3728',
+                        fontFamily: 'var(--font-vt323)',
+                        color: '#4a3728'
+                      }}
+                      disabled={isSendingStellar}
+                    />
+
                     <label 
                       className="block text-xs font-bold mb-1"
                       style={{ fontFamily: 'var(--font-vt323)', color: '#4a3728' }}
@@ -255,20 +502,23 @@ export function TransactionPanel() {
                         fontFamily: 'var(--font-vt323)',
                         color: '#4a3728'
                       }}
+                      disabled={isSendingStellar}
                     />
                   </div>
                   <button
                     onClick={handleStellarTransaction}
+                    disabled={isSendingStellar || isConnectingStellar}
                     className="w-full py-2 px-3 text-xs font-bold uppercase"
                     style={{ 
-                      backgroundColor: '#222',
-                      border: '2px solid #000',
+                      backgroundColor: isSendingStellar || isConnectingStellar ? '#666' : '#222',
+                      border: `2px solid ${isSendingStellar || isConnectingStellar ? '#555' : '#000'}`,
                       color: '#fff',
                       fontFamily: 'var(--font-vt323)',
-                      boxShadow: '2px 2px 0 rgba(0,0,0,0.2)'
+                      boxShadow: isSendingStellar || isConnectingStellar ? 'none' : '2px 2px 0 rgba(0,0,0,0.2)',
+                      cursor: isSendingStellar || isConnectingStellar ? 'not-allowed' : 'pointer'
                     }}
                   >
-                    Enviar XLM
+                    {isConnectingStellar ? 'Conectando...' : isSendingStellar ? 'Confirmando...' : 'Enviar XLM'}
                   </button>
                 </>
               )}

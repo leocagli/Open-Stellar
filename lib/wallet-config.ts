@@ -1,37 +1,33 @@
-import { cookieStorage, createStorage, http } from 'wagmi'
+import { createConfig, http, injected } from 'wagmi'
+import { walletConnect } from '@wagmi/connectors'
 import { bscTestnet, bsc } from 'wagmi/chains'
-import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 
-// WalletConnect Project ID - obtenido de https://cloud.reown.com
-export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || ''
+const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
 
-if (!projectId && typeof window !== 'undefined') {
-  console.warn('[v0] Missing NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID environment variable')
+const connectors: any[] = [injected()]
+
+if (walletConnectProjectId) {
+  connectors.push(
+    walletConnect({
+      projectId: walletConnectProjectId,
+      showQrModal: true,
+      metadata: {
+        name: 'Open Vinito',
+        description: 'Open Vinito multi-chain dApp',
+        url: process.env.NEXT_PUBLIC_APP_URL || 'https://v0-open-vinito.vercel.app',
+        icons: ['https://avatars.githubusercontent.com/u/37784886'],
+      },
+    })
+  )
 }
 
-// Metadata para la aplicación
-export const metadata = {
-  name: 'Vendimia World',
-  description: 'Ciudad de Agentes IA con integración Web3',
-  url: typeof window !== 'undefined' ? window.location.origin : 'https://localhost:3000',
-  icons: ['/favicon.ico']
-}
-
-// Chains soportadas - BNB Testnet y Mainnet
-export const chains = [bscTestnet, bsc] as const
-
-// Configuración del adaptador Wagmi para Reown AppKit
-export const wagmiAdapter = new WagmiAdapter({
-  storage: createStorage({
-    storage: cookieStorage
-  }),
-  ssr: true,
-  projectId,
-  networks: chains,
+// Wagmi config con MetaMask + WalletConnect para BNB Testnet y Mainnet
+export const wagmiConfig = createConfig({
+  chains: [bscTestnet, bsc],
+  connectors,
   transports: {
     [bscTestnet.id]: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
     [bsc.id]: http('https://bsc-dataseed.binance.org'),
-  }
+  },
+  ssr: true,
 })
-
-export const wagmiConfig = wagmiAdapter.wagmiConfig

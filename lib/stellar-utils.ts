@@ -1,6 +1,48 @@
-'use client'
-
 import freighter from '@stellar/freighter-api'
+import { Asset, BASE_FEE, Horizon, Operation, StrKey, TransactionBuilder } from '@stellar/stellar-sdk'
+
+type FreighterLikeResponse = string | { [key: string]: unknown } | null | undefined
+
+function getFreighterError(value: FreighterLikeResponse): string | null {
+  if (!value || typeof value === 'string') return null
+
+  const rawError = value.error
+  if (!rawError) return null
+
+  if (typeof rawError === 'string') return rawError
+  if (typeof rawError === 'object' && rawError !== null && 'message' in rawError) {
+    const message = rawError.message
+    if (typeof message === 'string') return message
+  }
+
+  return 'Freighter returned an unknown error'
+}
+
+function getFreighterAddress(value: FreighterLikeResponse): string | null {
+  if (!value) return null
+  if (typeof value === 'string') return value || null
+
+  const address = value.address
+  if (typeof address === 'string' && address.length > 0) return address
+
+  const publicKey = value.publicKey
+  if (typeof publicKey === 'string' && publicKey.length > 0) return publicKey
+
+  return null
+}
+
+function getSignedXdr(value: FreighterLikeResponse): string | null {
+  if (!value) return null
+  if (typeof value === 'string') return value || null
+
+  const signedTxXdr = value.signedTxXdr
+  if (typeof signedTxXdr === 'string' && signedTxXdr.length > 0) return signedTxXdr
+
+  const signedTransaction = value.signedTransaction
+  if (typeof signedTransaction === 'string' && signedTransaction.length > 0) return signedTransaction
+
+  return null
+}
 
 // Stellar Testnet configuration
 export const STELLAR_TESTNET = {
@@ -16,11 +58,19 @@ export const STELLAR_MAINNET = {
 
 export type StellarNetwork = 'TESTNET' | 'PUBLIC'
 
+function validateStellarAddress(address: string): boolean {
+  return StrKey.isValidEd25519PublicKey(address)
+}
+
 // Check if Freighter extension is installed
 export async function isFreighterInstalled(): Promise<boolean> {
   try {
-    const result = await freighter.isConnected()
-    return result
+    const result = await freighter.isConnected() as unknown
+    if (typeof result === 'boolean') return result
+    if (typeof result === 'object' && result !== null && 'isConnected' in result) {
+      return Boolean(result.isConnected)
+    }
+    return Boolean(result)
   } catch {
     return false
   }
@@ -29,8 +79,12 @@ export async function isFreighterInstalled(): Promise<boolean> {
 // Check if the user has granted access to the Freighter wallet
 export async function isFreighterAllowed(): Promise<boolean> {
   try {
-    const result = await freighter.isAllowed()
-    return result
+    const result = await freighter.isAllowed() as unknown
+    if (typeof result === 'boolean') return result
+    if (typeof result === 'object' && result !== null && 'isAllowed' in result) {
+      return Boolean(result.isAllowed)
+    }
+    return Boolean(result)
   } catch {
     return false
   }
@@ -49,13 +103,18 @@ export async function connectFreighter(): Promise<{ publicKey: string | null; er
     }
 
     // Request access
-    const accessObj = await freighter.requestAccess()
-    
-    if (accessObj.error) {
-      return { publicKey: null, error: accessObj.error }
+    const accessResult = await freighter.requestAccess() as FreighterLikeResponse
+    const accessError = getFreighterError(accessResult)
+    if (accessError) {
+      return { publicKey: null, error: accessError }
     }
-    
-    return { publicKey: accessObj.address, error: null }
+
+    const publicKey = getFreighterAddress(accessResult)
+    if (!publicKey) {
+      return { publicKey: null, error: 'Freighter did not return a public key' }
+    }
+
+    return { publicKey, error: null }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to connect to Freighter'
     return { publicKey: null, error: message }
@@ -68,8 +127,9 @@ export async function getFreighterPublicKey(): Promise<string | null> {
     const isAllowed = await isFreighterAllowed()
     if (!isAllowed) return null
     
-    const addressObj = await freighter.getAddress()
-    return addressObj.address || null
+    const result = await freighter.getPublicKey() as FreighterLikeResponse
+    const publicKey = getFreighterAddress(result)
+    return publicKey || null
   } catch {
     return null
   }
@@ -78,11 +138,20 @@ export async function getFreighterPublicKey(): Promise<string | null> {
 // Get the current network from Freighter
 export async function getFreighterNetwork(): Promise<StellarNetwork | null> {
   try {
-    const networkDetails = await freighter.getNetworkDetails()
-    
-    if (networkDetails.networkPassphrase === STELLAR_TESTNET.networkPassphrase) {
+    const networkDetails = await freighter.getNetworkDetails() as string | {
+      network?: string
+      networkPassphrase?: string
+    }
+
+    if (typeof networkDetails === 'string') {
+      if (networkDetails === 'TESTNET') return 'TESTNET'
+      if (networkDetails === 'PUBLIC') return 'PUBLIC'
+      return null
+    }
+
+    if (networkDetails.networkPassphrase === STELLAR_TESTNET.networkPassphrase || networkDetails.network === 'TESTNET') {
       return 'TESTNET'
-    } else if (networkDetails.networkPassphrase === STELLAR_MAINNET.networkPassphrase) {
+    } else if (networkDetails.networkPassphrase === STELLAR_MAINNET.networkPassphrase || networkDetails.network === 'PUBLIC') {
       return 'PUBLIC'
     }
     
@@ -119,15 +188,21 @@ export async function signTransaction(
       ? STELLAR_TESTNET.networkPassphrase 
       : STELLAR_MAINNET.networkPassphrase
 
-    const result = await freighter.signTransaction(xdr, {
+    const signResult = await freighter.signTransaction(xdr, {
       networkPassphrase
-    })
+    }) as FreighterLikeResponse
 
-    if (result.error) {
-      return { signedXdr: null, error: result.error }
+    const signError = getFreighterError(signResult)
+    if (signError) {
+      return { signedXdr: null, error: signError }
     }
 
-    return { signedXdr: result.signedTxXdr, error: null }
+    const signedXdr = getSignedXdr(signResult)
+    if (!signedXdr) {
+      return { signedXdr: null, error: 'Freighter did not return a signed transaction' }
+    }
+
+    return { signedXdr, error: null }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to sign transaction'
     return { signedXdr: null, error: message }
@@ -138,5 +213,56 @@ export async function signTransaction(
 export function disconnectFreighter(): void {
   // Freighter doesn't have an explicit disconnect method
   // The dApp just stops tracking the connection
-  console.log('[v0] Freighter disconnected from dApp')
+}
+
+export async function sendStellarPayment(params: {
+  sourcePublicKey: string
+  destinationPublicKey: string
+  amount: string
+  network?: StellarNetwork
+}): Promise<{ txHash: string | null; error: string | null }> {
+  const { sourcePublicKey, destinationPublicKey, amount, network = 'TESTNET' } = params
+
+  try {
+    if (!validateStellarAddress(sourcePublicKey) || !validateStellarAddress(destinationPublicKey)) {
+      return { txHash: null, error: 'Invalid Stellar address' }
+    }
+
+    const amountNum = Number(amount)
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      return { txHash: null, error: 'Invalid XLM amount' }
+    }
+
+    const config = network === 'TESTNET' ? STELLAR_TESTNET : STELLAR_MAINNET
+    const server = new Horizon.Server(config.networkUrl)
+    const account = await server.loadAccount(sourcePublicKey)
+    const baseFee = await server.fetchBaseFee().catch(() => BASE_FEE)
+
+    const tx = new TransactionBuilder(account, {
+      fee: String(baseFee),
+      networkPassphrase: config.networkPassphrase,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: destinationPublicKey,
+          asset: Asset.native(),
+          amount,
+        })
+      )
+      .setTimeout(180)
+      .build()
+
+    const { signedXdr, error: signError } = await signTransaction(tx.toXDR(), network)
+    if (signError || !signedXdr) {
+      return { txHash: null, error: signError || 'Failed to sign transaction' }
+    }
+
+    const signedTx = TransactionBuilder.fromXDR(signedXdr, config.networkPassphrase)
+    const result = await server.submitTransaction(signedTx)
+
+    return { txHash: result.hash, error: null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to submit Stellar transaction'
+    return { txHash: null, error: message }
+  }
 }

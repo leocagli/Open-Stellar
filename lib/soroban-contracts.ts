@@ -2,8 +2,6 @@
  * Smart Contract Soroban utilities para Stellar Testnet
  */
 
-import { ContractDataEntry, xdr } from '@stellar/stellar-sdk';
-
 /**
  * Configuración de Soroban para Stellar Testnet
  */
@@ -86,7 +84,7 @@ export async function signStellarTransaction(
     }
 
     const result = await freighter.signTransaction(transactionXdr, {
-      network: STELLAR_SOROBAN_CONFIG.networkPassphrase,
+      networkPassphrase: STELLAR_SOROBAN_CONFIG.networkPassphrase,
     });
 
     return result;
