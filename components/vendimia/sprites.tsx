@@ -409,13 +409,12 @@ export function ProgressBar({
 }
 
 // Task label bubble
-export function TaskLabel({ 
-  task, 
-  progress 
-}: { 
+export function TaskLabel(props: { 
   task: string;
   progress: number;
 }) {
+  const { task, progress } = props;
+  
   // Validar que task sea string valido
   if (!task || typeof task !== 'string') {
     return (
@@ -449,6 +448,7 @@ export function TaskLabel({
     fermentacion: { icon: BarrelIcon, label: 'Fermentacion', color: '#ff9800' },
     embotellado: { icon: BottleIcon, label: 'Embotellado', color: '#ff9800' },
     cata: { icon: WineGlassIcon, label: 'Cata', color: '#9c27b0' },
+    atención: { icon: GrapeIcon, label: 'Atención', color: '#dc2626' },
     administracion: { icon: BottleIcon, label: 'Admin', color: '#2196f3' },
     contabilidad: { icon: BottleIcon, label: 'Contabilidad', color: '#2196f3' },
     marketing: { icon: BottleIcon, label: 'Marketing', color: '#2196f3' },
@@ -458,8 +458,6 @@ export function TaskLabel({
   };
 
   const config = taskConfig[task];
-  
-  // Si no existe config, retornar fallback
   if (!config) {
     return (
       <div 

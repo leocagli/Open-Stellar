@@ -15,10 +15,11 @@ export const initialAgents: Agent[] = [
   { id: '6', name: 'Diego', avatar: '👨‍💼', task: 'administracion', location: 'oficina', progress: 60, x: 35, y: 55, color: '#F59E0B', skinColor: '#e8c39e', hairColor: '#3d2914', shirtColor: '#8b2942' },
   { id: '7', name: 'Elena', avatar: '👩‍💼', task: 'contabilidad', location: 'oficina', progress: 80, x: 65, y: 45, color: '#8B5CF6', skinColor: '#f5d6c6', hairColor: '#5c3d2e', shirtColor: '#2d5a27' },
   
-  // Plaza - venta, cata, espera
+  // Plaza - venta, cata, atención
   { id: '8', name: 'Rosita', avatar: '👩‍🍷', task: 'cata', location: 'plaza', progress: 40, x: 30, y: 45, color: '#3B82F6', skinColor: '#d4a574', hairColor: '#2c1810', shirtColor: '#4a6fa5' },
   { id: '9', name: 'Fernando', avatar: '👨‍💼', task: 'venta', location: 'plaza', progress: 65, x: 50, y: 55, color: '#EC4899', skinColor: '#e8c39e', hairColor: '#8b4513', shirtColor: '#8b2942' },
   { id: '10', name: 'Pancho', avatar: '👨‍🌾', task: 'venta', location: 'plaza', progress: 35, x: 70, y: 50, color: '#10B981', skinColor: '#c9a86c', hairColor: '#3d2914', shirtColor: '#f5f5dc' },
+  { id: '12', name: 'Marta', avatar: '👩‍🍳', task: 'atención', location: 'plaza', progress: 50, x: 40, y: 35, color: '#DC2626', skinColor: '#e8c39e', hairColor: '#8b4513', shirtColor: '#8b3a40' },
 ];
 
 export const buildings: Building[] = [
@@ -40,9 +41,10 @@ export const taskLabels: Record<string, { label: string; icon: string }> = {
   administracion: { label: 'Administracion', icon: '📋' },
   contabilidad: { label: 'Contabilidad', icon: '📊' },
   marketing: { label: 'Marketing', icon: '📢' },
-  // Plaza - cata, venta, espera
+  // Plaza - cata, venta, atención
   cata: { label: 'Cata', icon: '🍷' },
   venta: { label: 'Venta', icon: '💰' },
+  atención: { label: 'Atención', icon: '🍺' },
   espera: { label: 'En espera', icon: '⏳' },
   descanso: { label: 'Descanso', icon: '😴' },
 };
@@ -76,9 +78,10 @@ export const taskToScene: Record<string, string> = {
   administracion: 'oficina',
   contabilidad: 'oficina',
   marketing: 'oficina',
-  // Plaza - cata, venta y espera
+  // Plaza - cata, venta, atención y espera
   cata: 'plaza-central',
   venta: 'plaza-central',
+  atención: 'plaza-central',
   espera: 'plaza-central',
   descanso: 'plaza-central',
 };
