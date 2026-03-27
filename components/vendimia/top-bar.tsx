@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { GrapeIcon } from './sprites';
+import { WalletButton } from '@/components/wallet/wallet-button';
 
 interface TopBarProps {
   season: string;
@@ -21,13 +22,15 @@ const SCENE_LABELS: Record<string, string> = {
 
 export function TopBar({ season, day, totalGrapes, currentScene = 'plaza-central', onSceneChange }: TopBarProps) {
   return (
-    <motion.div
-      className="absolute top-0 left-0 z-10 pointer-events-none"
-      initial={{ y: -50, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ delay: 0.2 }}
-    >
-      <div className="p-2 md:p-3">
+    <>
+      {/* Left side - Game info */}
+      <motion.div
+        className="absolute top-0 left-0 z-10 pointer-events-none"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        <div className="p-2 md:p-3">
         {/* Logo - Pixel style */}
         <div 
           className="px-3 py-2 pointer-events-auto flex items-center gap-2"
@@ -84,7 +87,7 @@ export function TopBar({ season, day, totalGrapes, currentScene = 'plaza-central
               className="text-xs font-bold"
               style={{ fontFamily: 'var(--font-vt323)', color: '#7c3aed' }}
             >
-              {totalGrapes.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              {new Intl.NumberFormat('en-US').format(totalGrapes)}
             </span>
           </div>
         </div>
@@ -130,5 +133,18 @@ export function TopBar({ season, day, totalGrapes, currentScene = 'plaza-central
         </div>
       </div>
     </motion.div>
+
+      {/* Right side - Wallet */}
+      <motion.div
+        className="absolute top-0 right-0 z-10 pointer-events-none"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="p-2 md:p-3">
+          <WalletButton />
+        </div>
+      </motion.div>
+    </>
   );
 }
