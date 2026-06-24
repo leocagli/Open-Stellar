@@ -28,6 +28,7 @@ interface SidebarPanelProps {
   onSelectAgent: (id: string | null) => void
   onUpdateAgent: (agentId: string, wallet: MoltbotAgent["wallet"]) => void
   onAddTransaction: (tx: WalletTransaction) => void
+  onUpgradeSkill: (agentId: string, skillId: string) => void
   colorBlindMode: boolean
   onColorBlindModeChange: (enabled: boolean) => void
 }
@@ -420,6 +421,7 @@ export function SidebarPanel({
   onSelectAgent,
   onUpdateAgent,
   onAddTransaction,
+  onUpgradeSkill,
   colorBlindMode,
   onColorBlindModeChange,
 }: SidebarPanelProps) {
@@ -566,7 +568,7 @@ export function SidebarPanel({
           <ChatPanel messages={chatMessages} />
         )}
         {activeTab === "skills" && (
-          <SkillsPanel selectedAgent={selectedAgent} agents={agents} />
+          <SkillsPanel selectedAgent={selectedAgent} agents={agents} onUpgradeSkill={onUpgradeSkill} />
         )}
         {activeTab === "wallet" && (
           <WalletPanel
@@ -581,4 +583,3 @@ export function SidebarPanel({
     </div>
   )
 }
-

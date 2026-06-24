@@ -7,6 +7,7 @@ import { SidebarPanel } from "@/components/sidebar-panel"
 import { PriceTicker } from "@/components/price-display"
 import { DISTRICTS, createAgents, generateChatMessage, getRandomTask } from "@/lib/data"
 import type { PublishedSystemEvent } from "@/lib/events/system-events"
+import { upgradeAgentSkill } from "@/lib/gamification/skill-upgrades"
 import type { ChatMessage, LogEntry, MoltbotAgent, WalletTransaction } from "@/lib/types"
 
 function nowTime() {
@@ -601,6 +602,33 @@ export function OpenStellarHub() {
     })
   }, [pushLog])
 
+  const handleUpgradeSkill = useCallback((agentId: string, skillId: string) => {
+    const currentAgent = agentsRef.current.find((agent) => agent.id === agentId)
+    if (!currentAgent) {
+      pushLog("skill upgrade blocked: agent not found", "warning", agentId)
+      return
+    }
+
+    const preview = upgradeAgentSkill(currentAgent, skillId)
+    if (!preview.result) {
+      pushLog("skill upgrade blocked: skill not found", "warning", currentAgent.name)
+      return
+    }
+
+    if (!preview.result.upgraded) {
+      const blockedReason = preview.result.reason === "max-level" ? "already at max level" : "not enough XP"
+      pushLog(`skill upgrade blocked: ${blockedReason}`, "warning", currentAgent.name)
+      return
+    }
+
+    setAgents((prev) =>
+      prev.map((agent) => (agent.id === agentId ? upgradeAgentSkill(agent, skillId).agent : agent)),
+    )
+
+    pushLog(`${preview.result.skill.name} upgraded to level ${preview.result.skill.level}`, "success", preview.agent.name)
+    showAgentOverlay(preview.agent, `${preview.result.skill.name} Lv.${preview.result.skill.level}`, preview.agent.color)
+  }, [pushLog, showAgentOverlay])
+
   const handleAddTransaction = useCallback((tx: WalletTransaction) => {
     setTransactions((prev) => [tx, ...prev.slice(0, 99)])
     pushLog(`tx ${tx.fromName} -> ${tx.toName} (${tx.amount} XLM)`, "success", tx.fromName)
@@ -681,6 +709,7 @@ export function OpenStellarHub() {
           onSelectAgent={handleSelectAgent}
           onUpdateAgent={handleUpdateAgentWallet}
           onAddTransaction={handleAddTransaction}
+          onUpgradeSkill={handleUpgradeSkill}
           colorBlindMode={colorBlindMode}
           onColorBlindModeChange={handleColorBlindModeChange}
         />
@@ -688,4 +717,3 @@ export function OpenStellarHub() {
     </div>
   )
 }
-

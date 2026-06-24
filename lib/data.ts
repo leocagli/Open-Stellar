@@ -1,4 +1,5 @@
 import type { MoltbotAgent, District, DistrictId, Skill, ChatMessage } from "./types"
+import { getSkillUpgradeCost } from "./gamification/skill-upgrades"
 
 export const DISTRICTS: District[] = [
   { id: "data-center", name: "Data Center", color: "#22d3ee", bgColor: "#0e2a30", x: 40, y: 60, w: 260, h: 200 },
@@ -44,14 +45,20 @@ function generateSkills(district: DistrictId): Skill[] {
   const pool = SKILL_POOL[district]
   const count = rand(2, 4)
   const shuffled = [...pool].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, count).map((name, i) => ({
-    id: `${district}-skill-${i}`,
-    name,
-    level: rand(1, 4),
-    maxLevel: 5,
-    xp: rand(0, 80),
-    xpToNext: 100,
-  }))
+  return shuffled.slice(0, count).map((name, i) => {
+    const level = rand(1, 4)
+    const maxLevel = 5
+    const xpToNext = getSkillUpgradeCost({ level, maxLevel }) ?? 0
+
+    return {
+      id: `${district}-skill-${i}`,
+      name,
+      level,
+      maxLevel,
+      xp: rand(0, Math.max(80, xpToNext + 40)),
+      xpToNext,
+    }
+  })
 }
 
 // -------- Chat System --------

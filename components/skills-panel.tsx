@@ -1,6 +1,7 @@
 "use client"
 
 import type { MoltbotAgent, Skill } from "@/lib/types"
+import { getSkillUpgradeState } from "@/lib/gamification/skill-upgrades"
 
 function SkillPips({ level, maxLevel, color }: { level: number; maxLevel: number; color: string }) {
   return (
@@ -22,8 +23,19 @@ function SkillPips({ level, maxLevel, color }: { level: number; maxLevel: number
   )
 }
 
-function SkillCard({ skill, color }: { skill: Skill; color: string }) {
-  const xpPct = Math.min(100, (skill.xp / skill.xpToNext) * 100)
+function SkillCard({
+  skill,
+  color,
+  onUpgrade,
+}: {
+  skill: Skill
+  color: string
+  onUpgrade?: (skillId: string) => void
+}) {
+  const upgradeState = getSkillUpgradeState(skill)
+  const xpPct = upgradeState.progressPct
+  const remainingXp = upgradeState.cost === null ? 0 : Math.max(0, upgradeState.cost - skill.xp)
+
   return (
     <div
       style={{
@@ -46,22 +58,52 @@ function SkillCard({ skill, color }: { skill: Skill; color: string }) {
       </div>
       <SkillPips level={skill.level} maxLevel={skill.maxLevel} color={color} />
       {skill.level < skill.maxLevel && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ flex: 1, height: 3, background: "#1e293b", borderRadius: 2, overflow: "hidden" }}>
-            <div
-              style={{
-                width: `${xpPct}%`,
-                height: "100%",
-                background: color + "88",
-                borderRadius: 2,
-                transition: "width 0.3s",
-              }}
-            />
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ flex: 1, height: 3, background: "#1e293b", borderRadius: 2, overflow: "hidden" }}>
+              <div
+                style={{
+                  width: `${xpPct}%`,
+                  height: "100%",
+                  background: color + "88",
+                  borderRadius: 2,
+                  transition: "width 0.3s",
+                }}
+              />
+            </div>
+            <span style={{ fontFamily: "monospace", fontSize: 9, color: "#475569" }}>
+              {skill.xp}/{upgradeState.cost} XP
+            </span>
           </div>
-          <span style={{ fontFamily: "monospace", fontSize: 9, color: "#475569" }}>
-            {skill.xp}/{skill.xpToNext} XP
-          </span>
-        </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
+            <span style={{ fontFamily: "monospace", fontSize: 9, color: upgradeState.canUpgrade ? "#34d399" : "#64748b" }}>
+              {upgradeState.canUpgrade ? `Ready / ${upgradeState.xpAfterUpgrade} XP left` : `${remainingXp} XP needed`}
+            </span>
+            <button
+              type="button"
+              onClick={() => onUpgrade?.(skill.id)}
+              disabled={!upgradeState.canUpgrade}
+              aria-label={`Upgrade ${skill.name}`}
+              title={upgradeState.canUpgrade ? `Upgrade ${skill.name}` : `${remainingXp} XP needed`}
+              style={{
+                minWidth: 64,
+                minHeight: 24,
+                padding: "4px 8px",
+                background: upgradeState.canUpgrade ? color + "22" : "#0f172a",
+                border: `1px solid ${upgradeState.canUpgrade ? color + "66" : "#1e293b"}`,
+                borderRadius: 4,
+                color: upgradeState.canUpgrade ? color : "#475569",
+                cursor: upgradeState.canUpgrade ? "pointer" : "not-allowed",
+                fontFamily: "monospace",
+                fontSize: 9,
+                fontWeight: 700,
+                textTransform: "uppercase",
+              }}
+            >
+              Upgrade
+            </button>
+          </div>
+        </>
       )}
       {skill.level >= skill.maxLevel && (
         <span style={{ fontFamily: "monospace", fontSize: 9, color, fontWeight: 700 }}>
@@ -75,9 +117,10 @@ function SkillCard({ skill, color }: { skill: Skill; color: string }) {
 interface SkillsPanelProps {
   selectedAgent: MoltbotAgent | null
   agents: MoltbotAgent[]
+  onUpgradeSkill?: (agentId: string, skillId: string) => void
 }
 
-export function SkillsPanel({ selectedAgent, agents }: SkillsPanelProps) {
+export function SkillsPanel({ selectedAgent, agents, onUpgradeSkill }: SkillsPanelProps) {
   if (!selectedAgent) {
     return (
       <div style={{ padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
@@ -107,7 +150,12 @@ export function SkillsPanel({ selectedAgent, agents }: SkillsPanelProps) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {selectedAgent.skills.map(skill => (
-          <SkillCard key={skill.id} skill={skill} color={selectedAgent.color} />
+          <SkillCard
+            key={skill.id}
+            skill={skill}
+            color={selectedAgent.color}
+            onUpgrade={(skillId) => onUpgradeSkill?.(selectedAgent.id, skillId)}
+          />
         ))}
       </div>
 
