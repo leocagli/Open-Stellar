@@ -137,9 +137,16 @@ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=abc123...
 
 # URL pública del deployment (opcional, usado en metadata)
 NEXT_PUBLIC_APP_URL=https://tu-instancia.vercel.app
+
+# Local mock mode (opcional): evita llamadas reales a Stellar, x402 y Passport
+NEXT_PUBLIC_MOCK_MODE=false
 ```
 
 Obtener WalletConnect project ID en [cloud.walletconnect.com](https://cloud.walletconnect.com).
+
+### Local mock mode
+
+Set `NEXT_PUBLIC_MOCK_MODE=true` in `.env.local` to run the local demo without live Stellar testnet, Friendbot, Soroban, or x402 settlement calls. Mock mode returns a fixed funded Stellar balance, mock transaction hashes, mock x402 receipts, and mock passport attestations. A yellow banner appears at the top of the app so operators do not mistake mock responses for real payments.
 
 ---
 
@@ -265,3 +272,4 @@ npm run deploy:soroban:guide  # guía interactiva Soroban
 ## Licencia
 
 MIT
+
