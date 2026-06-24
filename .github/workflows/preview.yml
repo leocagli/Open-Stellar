@@ -28,34 +28,42 @@ jobs:
           VERCEL_PREVIEW_URL: ${{ vars.VERCEL_PREVIEW_URL }}
         with:
           script: |
-            const marker = '<!-- open-stellar-preview -->';
-            const previewUrl = process.env.VERCEL_PREVIEW_URL;
-            const body = previewUrl
-              ? `${marker}\nVercel preview: ${previewUrl}`
-              : `${marker}\nVercel will publish the deployment preview on this PR when the Vercel GitHub integration is enabled.`;
+            // Posting this comment is informational only -- it must never fail the workflow run.
+            // A 403 here means the target repo's Actions token doesn't have issue-comment write
+            // access (often a repo/org "Workflow permissions" setting), which a contributor's PR
+            // branch can't fix. Log and move on instead of failing CI on a cosmetic step.
+            try {
+              const marker = '<!-- open-stellar-preview -->';
+              const previewUrl = process.env.VERCEL_PREVIEW_URL;
+              const body = previewUrl
+                ? `${marker}\nVercel preview: ${previewUrl}`
+                : `${marker}\nVercel will publish the deployment preview on this PR when the Vercel GitHub integration is enabled.`;
 
-            const { owner, repo } = context.repo;
-            const issue_number = context.payload.pull_request.number;
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number,
-              per_page: 100,
-            });
-            const existing = comments.find((comment) => comment.body?.includes(marker));
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
+              const { owner, repo } = context.repo;
+              const issue_number = context.payload.pull_request.number;
+              const comments = await github.paginate(github.rest.issues.listComments, {
                 owner,
                 repo,
                 issue_number,
-                body,
+                per_page: 100,
               });
+              const existing = comments.find((comment) => comment.body?.includes(marker));
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number,
+                  body,
+                });
+              }
+            } catch (error) {
+              core.warning(`Could not post preview comment: ${error.message}`);
             }
