@@ -36,6 +36,16 @@ export interface X402Receipt {
   chain: SettlementChain
 }
 
+export interface X402ExplorerReceipt extends X402Receipt {
+  id: string
+  serviceId: string
+  agent: string
+  amountUsd: number
+  amountUnits: string
+  passportVerified: boolean
+  reputationTier: string
+ }
+
 const CHAIN_DECIMALS: Record<SettlementChain, number> = {
   bnb: 18,
   stellar: 7,
@@ -47,14 +57,21 @@ function parseUnits(value: number, decimals: number) {
 }
 
 type QuoteRegistry = Map<string, X402Quote>
+type ReceiptRegistry = X402ExplorerReceipt[]
 
 const globalState = globalThis as typeof globalThis & {
   __x402QuoteRegistry__?: QuoteRegistry
+  __x402ReceiptRegistry__?: ReceiptRegistry
 }
 
 const quoteRegistry: QuoteRegistry = globalState.__x402QuoteRegistry__ ?? new Map()
 if (!globalState.__x402QuoteRegistry__) {
   globalState.__x402QuoteRegistry__ = quoteRegistry
+}
+
+const receiptRegistry: ReceiptRegistry = globalState.__x402ReceiptRegistry__ ?? []
+if (!globalState.__x402ReceiptRegistry__) {
+  globalState.__x402ReceiptRegistry__ = receiptRegistry
 }
 
 export interface X402SettlementResult {
@@ -114,6 +131,55 @@ export function verifyX402Settlement(input: X402Settlement): X402Receipt {
   }
 }
 
+export function listX402ExplorerReceipts(filters: {
+  q?: string
+  service?: string
+  chain?: SettlementChain | 'all'
+  page?: number
+  pageSize?: number
+} = {}) {
+  const pageSize = Math.max(1, Math.min(50, Math.floor(filters.pageSize ?? 50)))
+  const page = Math.max(1, Math.floor(filters.page ?? 1))
+  const q = (filters.q || '').trim().toLowerCase()
+  const service = (filters.service || '').trim().toLowerCase()
+  const chain = filters.chain && filters.chain !== 'all' ? filters.chain : null
+
+  const filtered = receiptRegistry.filter((receipt) => {
+    if (chain && receipt.chain !== chain) return false
+    if (service && receipt.serviceId.toLowerCase() !== service) return false
+    if (q) {
+      const haystack = [
+        receipt.id,
+        receipt.paymentRef,
+        receipt.agent,
+        receipt.serviceId,
+        receipt.txHash,
+        receipt.chain,
+      ].join(' ').toLowerCase()
+      if (!haystack.includes(q)) return false
+    }
+    return true
+  })
+
+  const total = filtered.length
+  const start = (page - 1) * pageSize
+  const receipts = filtered.slice(start, start + pageSize)
+
+  return {
+    receipts,
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    stats: {
+      totalPayments: receiptRegistry.length,
+      totalUsd: Number(receiptRegistry.reduce((sum, receipt) => sum + receipt.amountUsd, 0).toFixed(6)),
+      uniqueAgents: new Set(receiptRegistry.map((receipt) => receipt.agent)).size,
+      services: new Set(receiptRegistry.map((receipt) => receipt.serviceId)).size,
+    },
+  }
+}
+
 export function settleX402(input: X402Settlement): X402SettlementResult {
   const quote = quoteRegistry.get(input.paymentRef)
   if (!quote) {
@@ -139,6 +205,18 @@ export function settleX402(input: X402Settlement): X402SettlementResult {
     return { ok: false, error: 'Invalid tx hash format' }
   }
 
+  receiptRegistry.unshift({
+    ...receipt,
+    id: `rcpt_${Date.now().toString(36)}_${receiptRegistry.length + 1}`,
+    serviceId: quote.serviceId,
+    agent: quote.payer,
+    amountUsd: quote.amountUsd,
+    amountUnits: quote.amountUnits,
+    passportVerified: true,
+    reputationTier: quote.amountUsd >= 1 ? 'gold' : 'standard',
+  })
+
   quoteRegistry.delete(input.paymentRef)
   return { ok: true, receipt }
 }
+
