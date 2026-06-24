@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { PixelCity, type TxAnimation } from "@/components/pixel-city"
 import { SidebarPanel } from "@/components/sidebar-panel"
+import { PriceTicker } from "@/components/price-display"
 import { DISTRICTS, createAgents, generateChatMessage, getRandomTask } from "@/lib/data"
 import type { ChatMessage, LogEntry, MoltbotAgent, WalletTransaction } from "@/lib/types"
 
