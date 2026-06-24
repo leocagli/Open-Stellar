@@ -64,6 +64,12 @@ El settle acepta `agentId` opcional; si está presente, llama al gate de passpor
 
 Archivos: [lib/protocols/x402.ts](lib/protocols/x402.ts), [app/api/protocol/x402/](app/api/protocol/x402/)
 
+### x402 Explorer
+
+Accepted x402 settlements are recorded in an in-memory receipt registry and exposed through the public explorer at `/explorer`. The same paginated, filterable data is available at `GET /api/explorer/receipts` for third-party dashboards or audits.
+
+Archivos: [app/explorer/page.tsx](app/explorer/page.tsx), [components/explorer/receipt-table.tsx](components/explorer/receipt-table.tsx), [app/api/explorer/receipts/route.ts](app/api/explorer/receipts/route.ts)
+
 ### Agent Passport (ZK) — capa de confianza zero-knowledge
 
 Cada agente puede acuñar un **pasaporte Groth16** que prueba — sin revelar la identidad del dueño ni el saldo real — que está respaldado por un humano verificado y es solvente hasta su spend cap.
