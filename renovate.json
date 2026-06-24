@@ -1,0 +1,86 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":separateMajorReleases"
+  ],
+  "labels": [
+    "dependencies",
+    "automated"
+  ],
+  "rangeStrategy": "bump",
+  "schedule": [
+    "before 10am on monday"
+  ],
+  "timezone": "Etc/UTC",
+  "packageRules": [
+    {
+      "description": "Keep ZK artifacts stable until they are regenerated.",
+      "matchPackageNames": [
+        "snarkjs"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Group Stellar SDK updates for focused wallet/protocol review.",
+      "matchPackageNames": [
+        "@stellar/**",
+        "stellar-sdk"
+      ],
+      "groupName": "stellar packages"
+    },
+    {
+      "description": "Group wallet connector updates together.",
+      "matchPackageNames": [
+        "wagmi",
+        "viem",
+        "@wagmi/**",
+        "@reown/**"
+      ],
+      "groupName": "wallet connector packages"
+    },
+    {
+      "description": "Group Radix UI packages together.",
+      "matchPackageNames": [
+        "@radix-ui/**"
+      ],
+      "groupName": "radix ui packages"
+    },
+    {
+      "description": "Auto-merge patch updates after CI passes.",
+      "matchUpdateTypes": [
+        "patch",
+        "digest"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true,
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Keep minor updates reviewable while still grouped by package family.",
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "automerge": false,
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Major updates always require manual review.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "dependencyDashboardApproval": true
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": [
+      "security",
+      "dependencies"
+    ]
+  }
+}

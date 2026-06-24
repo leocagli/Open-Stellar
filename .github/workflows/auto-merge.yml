@@ -1,0 +1,78 @@
+name: Auto-merge safe dependency updates
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  statuses: read
+
+jobs:
+  patch-dependencies:
+    name: Queue patch dependency updates
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge for safe patch updates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr || pr.draft) return;
+
+            const actor = pr.user.login;
+            const isBot = actor === 'dependabot[bot]' || actor === 'renovate[bot]';
+            if (!isBot) {
+              core.info(`Skipping non-bot PR from ${actor}`);
+              return;
+            }
+
+            const title = pr.title.toLowerCase();
+            const body = (pr.body || '').toLowerCase();
+            const text = `${title}\n${body}`;
+            const unsafe =
+              text.includes('major') ||
+              text.includes('semver-major') ||
+              text.includes('snarkjs') ||
+              text.includes('breaking change');
+
+            if (unsafe) {
+              core.info('Skipping update that needs manual review.');
+              return;
+            }
+
+            const looksPatch =
+              text.includes('patch') ||
+              text.includes('semver-patch') ||
+              /^deps\(.*\): bump .+ from .+ to .+/.test(title);
+
+            if (!looksPatch) {
+              core.info('Skipping non-patch dependency update.');
+              return;
+            }
+
+            try {
+              await github.graphql(`
+                mutation EnableAutoMerge($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: SQUASH
+                  }) {
+                    pullRequest { number }
+                  }
+                }
+              `, { pullRequestId: pr.node_id });
+            } catch (error) {
+              core.warning(`Could not enable auto-merge: ${error.message}`);
+              return;
+            }
+
+            core.info(`Auto-merge queued for PR #${pr.number}.`);
