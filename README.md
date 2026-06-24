@@ -90,6 +90,11 @@ Resolución de identidad de agentes siguiendo el estándar ERC-8004. Si la caden
 
 Archivos: [lib/protocols/track8004.ts](lib/protocols/track8004.ts), [lib/reputation/reputation-store.ts](lib/reputation/reputation-store.ts)
 
+### Price feed
+
+`GET /api/prices` returns a 60-second cached CoinGecko free-tier quote for XLM, BTC, and USDC. The canvas uses the same feed through `usePrices()` and `PriceTicker` so operators can see live USD context for XLM-denominated agent earnings and x402 service prices without configuring an API key.
+
+Relevant files: [lib/prices/coingecko.ts](lib/prices/coingecko.ts), [app/api/prices/route.ts](app/api/prices/route.ts), [hooks/use-prices.ts](hooks/use-prices.ts), [components/price-display.tsx](components/price-display.tsx)
 ### Escrow
 
 | Contrato | Red | Función |
