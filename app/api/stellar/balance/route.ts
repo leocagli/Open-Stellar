@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import * as StellarSdk from "@stellar/stellar-sdk"
+import { isMockMode } from "@/lib/mock/mock-mode"
+import { mockStellar } from "@/lib/mock/stellar-mock"
 
 const HORIZON = "https://horizon-testnet.stellar.org"
 
@@ -7,6 +9,7 @@ export async function POST(req: Request) {
   try {
     const { publicKey } = await req.json()
     if (!publicKey) return NextResponse.json({ error: "Missing publicKey" }, { status: 400 })
+    if (isMockMode()) return NextResponse.json(await mockStellar.getBalance())
 
     const server = new StellarSdk.Horizon.Server(HORIZON)
     const account = await server.loadAccount(publicKey)
@@ -20,3 +23,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ balance: "0", funded: false, error: isNotFound ? null : "network" })
   }
 }
+
