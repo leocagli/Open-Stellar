@@ -1,0 +1,58 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 8
+    commit-message:
+      prefix: "deps"
+      include: scope
+    groups:
+      stellar:
+        patterns:
+          - "@stellar/*"
+          - "stellar-sdk"
+      radix:
+        patterns:
+          - "@radix-ui/*"
+      wallet:
+        patterns:
+          - "wagmi"
+          - "viem"
+          - "@wagmi/*"
+          - "@reown/*"
+      test-tooling:
+        dependency-type: development
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "eslint"
+          - "@typescript-eslint/*"
+          - "typescript"
+    ignore:
+      - dependency-name: snarkjs
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
+    labels:
+      - dependencies
+      - automated
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:30"
+      timezone: Etc/UTC
+    commit-message:
+      prefix: "ci"
+      include: scope
+    labels:
+      - dependencies
+      - github-actions
