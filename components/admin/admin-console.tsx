@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, type ReactNode } from "react"
-import { Activity, Check, Code2, Copy, Cpu, ExternalLink, Fingerprint, KeyRound, Layers3, RadioTower, Rocket, Server, Shield, Terminal, Wallet } from "lucide-react"
+import { Activity, Check, Code2, Copy, Cpu, ExternalLink, Fingerprint, History, KeyRound, Layers3, RadioTower, Rocket, Server, Shield, Terminal, Wallet } from "lucide-react"
 import type { District, MoltbotAgent } from "@/lib/types"
 import { PassportPanel } from "@/components/admin/passport-panel"
 
@@ -170,6 +170,13 @@ export function AdminConsole({ agents, districts }: AdminConsoleProps) {
           <TabButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<RadioTower className="h-3.5 w-3.5" />}>
             Orchestration overview
           </TabButton>
+          <a
+            href="/admin/runs"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/70 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-400 transition hover:border-slate-700 hover:text-slate-200"
+          >
+            <History className="h-3.5 w-3.5" />
+            Runs history
+          </a>
           <TabButton active={tab === "passport"} onClick={() => setTab("passport")} icon={<Fingerprint className="h-3.5 w-3.5" />}>
             Agent Passport (ZK)
           </TabButton>
