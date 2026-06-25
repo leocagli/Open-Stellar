@@ -10,12 +10,14 @@ import { ChatPanel } from "./chat-panel"
 import { SkillsPanel } from "./skills-panel"
 import { WalletPanel } from "./wallet-panel"
 import { AppearancePanel } from "./appearance-panel"
+import { MOCK_OFFERS, TaskBoard, getTaskOfferCounts } from "./task-board"
 
-type TabId = "overview" | "chat" | "skills" | "wallet" | "appearance"
+type TabId = "overview" | "chat" | "offers" | "skills" | "wallet" | "appearance"
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "chat", label: "Chat" },
+  { id: "offers", label: "Offers" },
   { id: "skills", label: "Skills" },
   { id: "wallet", label: "Wallet" },
   { id: "appearance", label: "Appearance" },
@@ -273,6 +275,7 @@ function OverviewTab({
   const working = agents.filter(a => a.status === "working").length
   const errors = agents.filter(a => a.status === "error").length
   const totalTasks = agents.reduce((s, a) => s + a.tasksCompleted, 0)
+  const offerCounts = selectedAgent ? getTaskOfferCounts(selectedAgent.id, MOCK_OFFERS) : null
 
   const logTypeColors: Record<string, string> = {
     info: "#60a5fa", success: "#34d399", error: "#f87171", warning: "#fbbf24",
@@ -349,6 +352,12 @@ function OverviewTab({
           <div suppressHydrationWarning style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
             {"Completed: " + selectedAgent.tasksCompleted + " tasks"}
           </div>
+          {offerCounts && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+              <StatBox label="Posted" value={offerCounts.posted} color="#67e8f9" />
+              <StatBox label="Filled" value={offerCounts.filled} color="#34d399" />
+            </div>
+          )}
 
           <AgentShareControls agent={selectedAgent} />
         </div>
@@ -443,6 +452,7 @@ export function SidebarPanel({
   const chatCount = chatMessages.length
   const errorCount = agents.filter(a => a.status === "error").length
   const walletAlert = agents.some(a => !a.wallet || (a.wallet.funded && parseFloat(a.wallet.balance) < 10))
+  const openOfferCount = MOCK_OFFERS.filter(offer => offer.status === "open").length
 
   return (
     <div style={{
@@ -495,6 +505,26 @@ export function SidebarPanel({
                 borderRadius: "50%",
                 background: "#34d399",
               }} />
+            )}
+            {tab.id === "offers" && openOfferCount > 0 && (
+              <span style={{
+                position: "absolute",
+                top: 3,
+                right: 2,
+                minWidth: 14,
+                height: 14,
+                borderRadius: 7,
+                background: "#22d3ee",
+                color: "#020617",
+                fontSize: 8,
+                fontFamily: "monospace",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0 2px",
+              }}>
+                {openOfferCount}
+              </span>
             )}
             {tab.id === "overview" && errorCount > 0 && (
               <span style={{
@@ -570,6 +600,9 @@ export function SidebarPanel({
         )}
         {activeTab === "chat" && (
           <ChatPanel messages={chatMessages} />
+        )}
+        {activeTab === "offers" && (
+          <TaskBoard agents={agents} selectedAgent={selectedAgent} />
         )}
         {activeTab === "skills" && (
           <SkillsPanel selectedAgent={selectedAgent} agents={agents} onUpgradeSkill={onUpgradeSkill} />
