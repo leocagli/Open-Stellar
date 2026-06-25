@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import { PixelCity, type FloatingOverlay, type TxAnimation } from "@/components/pixel-city"
+import { PixelCity, type FloatingOverlay, type ParticleTrigger, type TxAnimation } from "@/components/pixel-city"
 import { SidebarPanel } from "@/components/sidebar-panel"
 import { PriceTicker } from "@/components/price-display"
 import { AudioControls } from "@/components/audio-controls"
@@ -181,6 +181,8 @@ export function OpenStellarHub() {
   const [tick, setTick] = useState(0)
   const [txAnimations, setTxAnimations] = useState<TxAnimation[]>([])
   const [floatingOverlays, setFloatingOverlays] = useState<FloatingOverlay[]>([])
+  const [particleTriggers, setParticleTriggers] = useState<ParticleTrigger[]>([])
+  const agentLevelsRef = useRef<Map<string, number>>(new Map())
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [colorBlindMode, setColorBlindMode] = useState(false)
@@ -292,8 +294,24 @@ export function OpenStellarHub() {
     ])
   }, [])
 
+  const spawnParticles = useCallback(
+    (type: ParticleTrigger["type"], x: number, y: number, opts?: ParticleTrigger["opts"]) => {
+      setParticleTriggers((prev) => [
+        ...prev,
+        {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          type,
+          x,
+          y,
+          opts,
+        },
+      ])
+    },
+    []
+  )
+
   const applySystemEvent = useCallback((event: PublishedSystemEvent) => {
-    let animatedAgent: MoltbotAgent | null = null
+    const animatedAgentBox: { current: MoltbotAgent | null } = { current: null }
 
     setAgents((prev) =>
       prev.map((agent) => {
@@ -313,7 +331,7 @@ export function OpenStellarHub() {
         }
 
         if (event.type === "task.completed") {
-          animatedAgent = agent
+          animatedAgentBox.current = agent
           return {
             ...agent,
             status: "active",
@@ -324,7 +342,7 @@ export function OpenStellarHub() {
         }
 
         if (event.type === "payment.received") {
-          animatedAgent = agent
+          animatedAgentBox.current = agent
           return {
             ...agent,
             status: "active",
@@ -338,9 +356,14 @@ export function OpenStellarHub() {
     if (event.type === "task.completed") {
       audioEngine.playEvent("task_complete")
       pushLog(`task completed: ${event.taskId} — ${event.result.summary}`, "success", event.agentId)
-      if (animatedAgent) {
-        animateAgentToDistrict(animatedAgent)
-        showAgentOverlay(animatedAgent, "+task", "#34d399")
+      const agent = animatedAgentBox.current
+      if (agent) {
+        animateAgentToDistrict(agent)
+        showAgentOverlay(agent, "+task", "#34d399")
+        const district = DISTRICTS.find((candidate) => candidate.id === agent.district)
+        spawnParticles("xp-burst", agent.pixelX + 8, agent.pixelY, {
+          color: district?.color ?? agent.color,
+        })
       }
       return
     }
@@ -350,9 +373,14 @@ export function OpenStellarHub() {
       pushLog(`payment received on ${event.receipt.chain}: ${event.receipt.txHash.slice(0, 12)}...`, "success", event.agentId)
       const amount = event.receipt.amountUsd ? `$${event.receipt.amountUsd.toFixed(3)}` : event.receipt.chain
       toast.success("Payment received", { description: `${event.agentId} settled ${amount}` })
-      if (animatedAgent) {
-        animateAgentToDistrict(animatedAgent)
-        showAgentOverlay(animatedAgent, `+${amount}`, "#fbbf24")
+      const agent = animatedAgentBox.current
+      if (agent) {
+        animateAgentToDistrict(agent)
+        showAgentOverlay(agent, `+${amount}`, "#fbbf24")
+        const xlmAmount = event.receipt.amountUnits ? `+${event.receipt.amountUnits} XLM` : "+0.01 XLM"
+        spawnParticles("payment-spark", agent.pixelX + 8, agent.pixelY + 10, {
+          amount: xlmAmount,
+        })
       }
       return
     }
@@ -361,7 +389,17 @@ export function OpenStellarHub() {
       audioEngine.playEvent("level_up")
       pushLog(`XP update: +${event.xp}, level ${event.level}`, "success", event.agentId)
       const agent = agentsRef.current.find((candidate) => candidate.id === event.agentId)
-      if (agent) showAgentOverlay(agent, `+${event.xp} XP`, "#22d3ee")
+      if (agent) {
+        showAgentOverlay(agent, `+${event.xp} XP`, "#22d3ee")
+        const previousLevel = agentLevelsRef.current.get(event.agentId) ?? event.level
+        if (event.level > previousLevel) {
+          spawnParticles("level-up", agent.pixelX + 8, agent.pixelY, {
+            color: agent.color,
+            level: event.level,
+          })
+        }
+        agentLevelsRef.current.set(event.agentId, event.level)
+      }
       return
     }
 
@@ -370,15 +408,28 @@ export function OpenStellarHub() {
       pushLog(`badge unlocked: ${event.badge.name}`, "success", event.agentId)
       toast.success("Badge unlocked", { description: `${event.agentId}: ${event.badge.name}` })
       const agent = agentsRef.current.find((candidate) => candidate.id === event.agentId)
-      if (agent) showAgentOverlay(agent, event.badge.name, "#a78bfa")
+      if (agent) {
+        showAgentOverlay(agent, event.badge.name, "#a78bfa")
+        spawnParticles("badge-unlock", agent.pixelX + 8, agent.pixelY, {
+          rarity: event.badge.rarity ?? "common",
+        })
+      }
       return
     }
 
     if (event.type === "district.unlocked") {
       audioEngine.playEvent("district_win")
-      const districtName = event.district?.name ?? event.districtId ?? "a district"
+      const districtId = event.districtId ?? event.district?.id
+      const district = DISTRICTS.find((candidate) => candidate.id === districtId)
+      const districtName = event.district?.name ?? district?.name ?? districtId ?? "a district"
       pushLog(`district unlocked: ${districtName}`, "success", event.agentId ?? "system")
       toast.success("District unlocked", { description: String(districtName) })
+      if (district) {
+        spawnParticles("district-win", district.x + district.w / 2, district.y, {
+          color: district.color,
+          spreadW: district.w * 0.7,
+        })
+      }
       return
     }
 
@@ -392,7 +443,7 @@ export function OpenStellarHub() {
       pushLog(`status changed: ${event.status}`, "info", event.agentId)
       return
     }
-  }, [animateAgentToDistrict, audioEngine, pushLog, showAgentOverlay])
+  }, [animateAgentToDistrict, audioEngine, pushLog, showAgentOverlay, spawnParticles])
 
   useEffect(() => {
     const eventSource = new EventSource("/api/events")
@@ -605,6 +656,16 @@ export function OpenStellarHub() {
     return () => window.clearInterval(id)
   }, [floatingOverlays.length])
 
+  // Particle triggers are one-shot — PixelCity consumes them into its ParticleSystem on
+  // receipt, so this just garbage-collects the request objects shortly after.
+  useEffect(() => {
+    if (particleTriggers.length === 0) return
+    const id = window.setTimeout(() => {
+      setParticleTriggers([])
+    }, 500)
+    return () => window.clearTimeout(id)
+  }, [particleTriggers])
+
   const handleSelectAgent = useCallback((id: string | null) => {
     setSelectedAgentId(id)
 
@@ -675,6 +736,7 @@ export function OpenStellarHub() {
           colorBlindMode={colorBlindMode}
           reduceMotion={reduceMotion}
           floatingOverlays={floatingOverlays}
+          particleTriggers={particleTriggers}
           audioEngine={audioEngine}
         />
 

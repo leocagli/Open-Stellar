@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useState } from "react"
 import type { MoltbotAgent, District } from "@/lib/types"
 import { drawGrid, drawRoads, drawDistrict, drawBot } from "@/lib/renderer"
+import { ParticleSystem, type ParticleEvent, type ParticleOpts } from "@/lib/renderer/particles"
 import type { CityAudioEngine } from "@/lib/audio/city-audio"
 
 const BG_IMAGES: Record<string, string> = {
@@ -48,6 +49,14 @@ export interface TxAnimation {
   duration: number
 }
 
+export interface ParticleTrigger {
+  id: number
+  type: ParticleEvent
+  x: number
+  y: number
+  opts?: ParticleOpts
+}
+
 interface PixelCityProps {
   agents: MoltbotAgent[]
   districts: District[]
@@ -58,6 +67,7 @@ interface PixelCityProps {
   colorBlindMode?: boolean
   reduceMotion?: boolean
   floatingOverlays?: FloatingOverlay[]
+  particleTriggers?: ParticleTrigger[]
   audioEngine?: CityAudioEngine
 }
 
@@ -79,10 +89,14 @@ export function PixelCity({
   colorBlindMode = false,
   reduceMotion = false,
   floatingOverlays = [],
+  particleTriggers = [],
   audioEngine,
 }: PixelCityProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const particleCanvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const particleSystemRef = useRef<ParticleSystem>(new ParticleSystem())
+  const processedParticleIdsRef = useRef<Set<number>>(new Set())
   const [images, setImages] = useState<Record<string, HTMLImageElement>>({})
   const [sprites, setSprites] = useState<HTMLImageElement[]>([])
   const spriteCrops = useRef<(([number, number, number, number]) | undefined)[]>([])
@@ -127,6 +141,7 @@ export function PixelCity({
 
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current
+    const particleCanvas = particleCanvasRef.current
     const container = containerRef.current
     if (!canvas || !container) return
     const dpr = window.devicePixelRatio || 1
@@ -137,6 +152,15 @@ export function PixelCity({
     canvas.style.height = `${rect.height}px`
     const ctx = canvas.getContext("2d")
     if (ctx) ctx.scale(dpr, dpr)
+
+    if (particleCanvas) {
+      particleCanvas.width = rect.width * dpr
+      particleCanvas.height = rect.height * dpr
+      particleCanvas.style.width = `${rect.width}px`
+      particleCanvas.style.height = `${rect.height}px`
+      const pctx = particleCanvas.getContext("2d")
+      if (pctx) pctx.scale(dpr, dpr)
+    }
   }, [])
 
   useEffect(() => {
@@ -144,6 +168,50 @@ export function PixelCity({
     window.addEventListener("resize", resizeCanvas)
     return () => window.removeEventListener("resize", resizeCanvas)
   }, [resizeCanvas])
+
+  // Consume declarative particle triggers fired from SSE events (XP, payments, level-ups, badges, district wins).
+  useEffect(() => {
+    const system = particleSystemRef.current
+    const currentIds = new Set(particleTriggers.map((trigger) => trigger.id))
+
+    for (const trigger of particleTriggers) {
+      if (processedParticleIdsRef.current.has(trigger.id)) continue
+      processedParticleIdsRef.current.add(trigger.id)
+      system.emit(trigger.type, trigger.x, trigger.y, trigger.opts)
+    }
+
+    for (const id of processedParticleIdsRef.current) {
+      if (!currentIds.has(id)) processedParticleIdsRef.current.delete(id)
+    }
+  }, [particleTriggers])
+
+  // Drive the particle system on its own animation-frame loop, independent of the
+  // tick-driven city redraw, so physics (gravity, bounce, rise/fade) stay smooth.
+  useEffect(() => {
+    if (reduceMotion) return
+    let frameId: number
+    let lastTime = performance.now()
+
+    const loop = (now: number) => {
+      const dt = Math.min(now - lastTime, 50)
+      lastTime = now
+      const system = particleSystemRef.current
+      system.update(dt)
+
+      const canvas = particleCanvasRef.current
+      const ctx = canvas?.getContext("2d")
+      if (ctx && canvas) {
+        const dpr = window.devicePixelRatio || 1
+        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
+        system.draw(ctx)
+      }
+
+      frameId = requestAnimationFrame(loop)
+    }
+
+    frameId = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(frameId)
+  }, [reduceMotion])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -335,6 +403,18 @@ export function PixelCity({
           imageRendering: "pixelated",
           position: "relative",
           zIndex: 1,
+        }}
+      />
+      <canvas
+        ref={particleCanvasRef}
+        aria-hidden="true"
+        style={{
+          display: "block",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 2,
+          pointerEvents: "none",
         }}
       />
       <div aria-label="Agents on city canvas" role="listbox">
