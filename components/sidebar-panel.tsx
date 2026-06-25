@@ -3,20 +3,22 @@
 import { useState, useEffect, type ReactNode } from "react"
 import { Copy, Download, Share2 } from "lucide-react"
 import { toast } from "sonner"
-import type { MoltbotAgent, LogEntry, ChatMessage, WalletTransaction } from "@/lib/types"
+import type { AgentAppearance, MoltbotAgent, LogEntry, ChatMessage, WalletTransaction } from "@/lib/types"
 import { DISTRICTS } from "@/lib/data"
 import { formatAgentShareText, getAgentOgPath, getAgentProfilePath, slugifyAgent } from "@/lib/og-card-data"
 import { ChatPanel } from "./chat-panel"
 import { SkillsPanel } from "./skills-panel"
 import { WalletPanel } from "./wallet-panel"
+import { AppearancePanel } from "./appearance-panel"
 
-type TabId = "overview" | "chat" | "skills" | "wallet"
+type TabId = "overview" | "chat" | "skills" | "wallet" | "appearance"
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "chat", label: "Chat" },
   { id: "skills", label: "Skills" },
   { id: "wallet", label: "Wallet" },
+  { id: "appearance", label: "Appearance" },
 ]
 
 interface SidebarPanelProps {
@@ -29,6 +31,7 @@ interface SidebarPanelProps {
   onUpdateAgent: (agentId: string, wallet: MoltbotAgent["wallet"]) => void
   onAddTransaction: (tx: WalletTransaction) => void
   onUpgradeSkill: (agentId: string, skillId: string) => void
+  onUpdateAgentAppearance: (agentId: string, appearance: AgentAppearance) => void
   colorBlindMode: boolean
   onColorBlindModeChange: (enabled: boolean) => void
 }
@@ -422,6 +425,7 @@ export function SidebarPanel({
   onUpdateAgent,
   onAddTransaction,
   onUpgradeSkill,
+  onUpdateAgentAppearance,
   colorBlindMode,
   onColorBlindModeChange,
 }: SidebarPanelProps) {
@@ -577,6 +581,13 @@ export function SidebarPanel({
             transactions={transactions}
             onUpdateAgent={onUpdateAgent}
             onAddTransaction={onAddTransaction}
+          />
+        )}
+        {activeTab === "appearance" && (
+          <AppearancePanel
+            agents={agents}
+            selectedAgent={selectedAgent}
+            onUpdateAgentAppearance={onUpdateAgentAppearance}
           />
         )}
       </div>
