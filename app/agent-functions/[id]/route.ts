@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCloudAgentConfig, provisionCloudAgent, updateCloudAgentResult } from "@/lib/agent-runtime/cloud-agents"
 import { recordAgentHeartbeat, HEARTBEAT_INTERVAL_MS } from "@/lib/agents/agent-health-store"
 import { publishSystemEvent } from "@/lib/events/system-events"
+import { isAuthorized } from "@/lib/auth"
 
 export const runtime = "edge"
 export const dynamic = "force-dynamic"
@@ -32,11 +33,19 @@ async function reasonAboutTask(task: string, model: string): Promise<string> {
 }
 
 export async function POST(req: Request, context: RouteContext) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+  }
+
   const { id } = await context.params
   const agentId = decodeURIComponent(id)
   const config = getConfig(agentId, req)
   const body = await req.json().catch(() => ({}))
-  const task = String(body.task || body.title || body.prompt || "Process orchestrator task")
+
+  // Sanitize and limit task string length (max 2000 chars)
+  const rawTask = String(body.task || body.title || body.prompt || "Process orchestrator task")
+  const task = rawTask.trim().slice(0, 2000)
+
   const taskId = String(body.taskId || `task-${Date.now()}`)
 
   recordAgentHeartbeat(config.id, { status: "working", cpu: 32, memory: 42, currentTask: task, autoRestart: true })
