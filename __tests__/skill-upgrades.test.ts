@@ -42,7 +42,6 @@ function makeAgent(skill: Skill): MoltbotAgent {
       accessories: [],
       customColor: null,
     },
-    appearance: { skin: "default", accessories: [], customColor: null },
   }
 }
 
