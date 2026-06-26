@@ -123,6 +123,23 @@ export function listWebhooksWithSecrets(): WebhookRegistration[] {
   return readWebhooks()
 }
 
+export function rotateWebhookSecret(id: string): WebhookRegistration | null {
+  const cleanId = id.trim()
+  const webhooks = readWebhooks()
+  const index = webhooks.findIndex((webhook) => webhook.id === cleanId)
+  if (index === -1) return null
+
+  const updated: WebhookRegistration = {
+    ...webhooks[index],
+    secret: randomBytes(32).toString("hex"),
+  }
+  const next = [...webhooks]
+  next[index] = updated
+  writeWebhooks(next)
+
+  return updated
+}
+
 export function deleteWebhook(id: string): boolean {
   const cleanId = id.trim()
   const webhooks = readWebhooks()

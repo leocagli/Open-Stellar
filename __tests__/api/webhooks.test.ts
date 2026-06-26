@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { GET as EVENT_TYPES_GET } from "@/app/api/webhooks/event-types/route"
 import { DELETE } from "@/app/api/webhooks/[id]/route"
 import { GET as DELIVERIES_GET } from "@/app/api/webhooks/[id]/deliveries/route"
+import { POST as ROTATE_POST } from "@/app/api/webhooks/[id]/rotate/route"
 import { GET, POST } from "@/app/api/webhooks/route"
 import { publishSystemEvent } from "@/lib/events/system-events"
 import { deliverWebhookEvent } from "@/lib/webhooks/delivery"
@@ -130,6 +131,78 @@ describe("webhook API", () => {
     expect(deleted.status).toBe(200)
     expect(deleteData.deleted).toBe(true)
     expect(listData.webhooks).toEqual([])
+  })
+
+  it("rotates a webhook secret without changing public registration fields", async () => {
+    const { data: registered } = await registerWebhook()
+    const before = await GET()
+    const beforeData = await before.json()
+
+    const rotated = await ROTATE_POST(
+      new Request(`http://localhost/api/webhooks/${registered.id}/rotate`, { method: "POST" }),
+      context(registered.id),
+    )
+    const rotatedData = await rotated.json() as { id: string; secret: string }
+    const after = await GET()
+    const afterData = await after.json()
+
+    expect(rotated.status).toBe(200)
+    expect(rotated.headers.get("Cache-Control")).toBe("no-store")
+    expect(rotatedData.id).toBe(registered.id)
+    expect(rotatedData.secret).toHaveLength(64)
+    expect(rotatedData.secret).not.toBe(registered.secret)
+    expect(afterData.webhooks).toHaveLength(1)
+    expect(afterData.webhooks[0]).toMatchObject({
+      id: registered.id,
+      url: "https://partner.example/webhooks/open-stellar",
+      events: ["agent.status", "quest.completed"],
+      createdAt: beforeData.webhooks[0].createdAt,
+    })
+    expect(afterData.webhooks[0]).not.toHaveProperty("secret")
+  })
+
+  it("returns 404 when rotating an unknown webhook", async () => {
+    const res = await ROTATE_POST(
+      new Request("http://localhost/api/webhooks/wh_missing/rotate", { method: "POST" }),
+      context("wh_missing"),
+    )
+    const data = await res.json()
+
+    expect(res.status).toBe(404)
+    expect(res.headers.get("Cache-Control")).toBe("no-store")
+    expect(data.error).toBe("Webhook not found")
+  })
+
+  it("uses the rotated secret for webhook delivery signatures", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal("fetch", fetchMock)
+    const { data: registered } = await registerWebhook()
+    const rotated = await ROTATE_POST(
+      new Request(`http://localhost/api/webhooks/${registered.id}/rotate`, { method: "POST" }),
+      context(registered.id),
+    )
+    const rotatedData = await rotated.json() as { id: string; secret: string }
+
+    await deliverWebhookEvent({
+      id: "evt_agent_status_rotated",
+      occurredAt: "2026-06-26T00:00:00.000Z",
+      type: "agent.status",
+      agentId: "nexus-7",
+      status: "working",
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const body = init.body as string
+    const oldSignature = `sha256=${createHmac("sha256", registered.secret).update(body).digest("hex")}`
+    const newSignature = `sha256=${createHmac("sha256", rotatedData.secret).update(body).digest("hex")}`
+
+    expect(init.headers).toMatchObject({
+      "X-Open-Stellar-Signature": newSignature,
+    })
+    expect(init.headers).not.toMatchObject({
+      "X-Open-Stellar-Signature": oldSignature,
+    })
   })
 
   it("delivers matching events with the expected payload and HMAC signature", async () => {

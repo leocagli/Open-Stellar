@@ -31,6 +31,7 @@ const spec = {
     "/api/events/{agentId}": { get: op("Events", "List events for an agent", ["agentId"]) },
     "/api/webhooks": { get: op("Webhooks", "List webhook registrations"), post: op("Webhooks", "Create a webhook registration", [], { url: "https://partner.example/hooks", events: ["agent.status"] }) },
     "/api/webhooks/{id}": { delete: op("Webhooks", "Delete a webhook registration", ["id"]) },
+    "/api/webhooks/{id}/rotate": { post: op("Webhooks", "Rotate a webhook signing secret", ["id"]) },
     "/api/webhooks/event-types": { get: op("Webhooks", "List supported webhook event types") },
     "/api/feed": { get: op("Events", "List public activity feed") },
     "/api/districts/{districtId}/broadcast": { post: op("Events", "Broadcast a district event", ["districtId"], { message: "Throughput race started" }) },
