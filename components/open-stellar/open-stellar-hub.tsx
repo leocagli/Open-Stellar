@@ -460,11 +460,8 @@ export function OpenStellarHub() {
       return
     }
 
-    if (event.type === "district.unlocked") {
-      audioEngine.playEvent("district_win")
-      const districtName = event.district?.name ?? event.districtId ?? "a district"
-      pushLog(`district unlocked: ${districtName}`, "success", event.agentId ?? "system")
-      toast.success("District unlocked", { description: String(districtName) })
+    if (event.type === "agent.registry") {
+      pushLog(`registry ${event.action}: ${event.agent.agentId}`, "info", event.agentId)
       return
     }
 
