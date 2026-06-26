@@ -12,8 +12,8 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const paymentRef = String(body.paymentRef || '')
-    const chain = body.chain === 'stellar' ? 'stellar' : 'bnb'
+    const paymentRef = String(body.paymentRef || body.quoteId || '')
+    const chain = body.chain === 'bnb' || body.chain === 'base' || body.chain === 'stellar' ? body.chain : 'stellar'
     const agentId = body.agentId ? String(body.agentId) : ''
     const paidBy = String(body.paidBy || 'unknown')
 
@@ -63,6 +63,7 @@ export async function POST(req: Request) {
       chain,
       txHash: String(body.txHash || ''),
       paidBy,
+      agentId,
     })
 
     if (!result.ok || !result.receipt) {

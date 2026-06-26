@@ -1,12 +1,17 @@
+import { StrKey } from '@stellar/stellar-sdk'
+import { verifyEvmPayment, type EvmSettlementChain } from '@/lib/evm-utils'
+
 import { getX402Receipt, listX402Receipts, saveX402Receipt, type X402ReceiptQuery } from '@/lib/protocols/x402-receipt-store'
 import type { ReputationAttestation, ReputationGateRequirement } from '@/lib/reputation/attestation'
 import { checkReputationGate } from '@/lib/reputation/attestation'
 
-export type SettlementChain = 'bnb' | 'stellar'
+export type SettlementChain = 'bnb' | 'base' | 'stellar'
+
+type ChainAsset = 'XLM' | 'BNB' | 'ETH'
 
 export interface X402QuoteRequest {
   serviceId: string
-  chain: SettlementChain
+  chain?: SettlementChain
   payer: string
   units: number
   unitPriceUsd: number
@@ -15,27 +20,41 @@ export interface X402QuoteRequest {
   attestation?: ReputationAttestation
 }
 
+export interface X402QuoteOption {
+  chain: SettlementChain
+  amount: string
+  amountUnits: string
+  address: string
+}
+
 export interface X402Quote {
   code: 402
+  quoteId: string
+  service: string
   serviceId: string
   chain: SettlementChain
   payer: string
   amountUsd: number
   amountUnits: string
+  address: string
+  options: X402QuoteOption[]
   expiresAt: string
   paymentRef: string
   memo: string
 }
 
 export interface X402Settlement {
-  paymentRef: string
+  quoteId?: string
+  paymentRef?: string
   chain: SettlementChain
   txHash: string
-  paidBy: string
+  paidBy?: string
+  agentId?: string
 }
 
 export interface X402Receipt {
   accepted: boolean
+  quoteId?: string
   paymentRef: string
   settledAt: string
   txHash: string
@@ -57,14 +76,25 @@ export interface X402ExplorerReceipt extends X402Receipt {
   reputationTier: string
 }
 
-const CHAIN_DECIMALS: Record<SettlementChain, number> = {
-  bnb: 18,
-  stellar: 7,
+const CHAIN_DECIMALS: Record<SettlementChain, number> = { bnb: 18, base: 18, stellar: 7 }
+const CHAIN_ASSET: Record<SettlementChain, ChainAsset> = { bnb: 'BNB', base: 'ETH', stellar: 'XLM' }
+const FALLBACK_USD: Record<SettlementChain, number> = { stellar: 0.1, bnb: 550, base: 3000 }
+const COINGECKO_IDS: Record<SettlementChain, string> = { stellar: 'stellar', bnb: 'binancecoin', base: 'ethereum' }
+const DEFAULT_ADDRESSES: Record<SettlementChain, string> = {
+  stellar: process.env.X402_STELLAR_ADDRESS || 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+  bnb: process.env.X402_BNB_ADDRESS || process.env.X402_EVM_ADDRESS || '0x0000000000000000000000000000000000000000',
+  base: process.env.X402_BASE_ADDRESS || process.env.X402_EVM_ADDRESS || '0x0000000000000000000000000000000000000000',
 }
 
-function parseUnits(value: number, decimals: number) {
+let cachedRates: { rates: Record<SettlementChain, number>; expiresAt: number } | null = null
+
+function parseUnits(value: number, decimals: number): string {
   const fixed = value.toFixed(decimals)
-  return fixed.replace('.', '')
+  return fixed.replace('.', '').replace(/^0+(?=\d)/, '')
+}
+
+function formatNativeAmount(value: number): string {
+  return value.toLocaleString('en-US', { maximumFractionDigits: 8, minimumFractionDigits: 0, useGrouping: false })
 }
 
 type QuoteRegistry = Map<string, X402Quote>
@@ -74,19 +104,31 @@ const globalState = globalThis as typeof globalThis & {
 }
 
 const quoteRegistry: QuoteRegistry = globalState.__x402QuoteRegistry__ ?? new Map()
-if (!globalState.__x402QuoteRegistry__) {
-  globalState.__x402QuoteRegistry__ = quoteRegistry
-}
+if (!globalState.__x402QuoteRegistry__) globalState.__x402QuoteRegistry__ = quoteRegistry
+export interface X402SettlementResult { ok: boolean; receipt?: X402Receipt; error?: string }
 
+export function peekX402Quote(paymentRef: string): X402Quote | undefined { return quoteRegistry.get(paymentRef) }
 
-export interface X402SettlementResult {
-  ok: boolean
-  receipt?: X402Receipt
-  error?: string
-}
+async function refreshNativeUsdRates(fetcher: typeof fetch = fetch): Promise<Record<SettlementChain, number>> {
+  const now = Date.now()
+  if (cachedRates && cachedRates.expiresAt > now) return cachedRates.rates
 
-export function peekX402Quote(paymentRef: string): X402Quote | undefined {
-  return quoteRegistry.get(paymentRef)
+  try {
+    const ids = Object.values(COINGECKO_IDS).join(',')
+    const response = await fetcher(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`, { headers: { accept: 'application/json' }, next: { revalidate: 30 } })
+    if (!response.ok) throw new Error('CoinGecko unavailable')
+    const payload = await response.json() as Record<string, { usd?: number }>
+    const rates = { ...FALLBACK_USD }
+    for (const chain of Object.keys(COINGECKO_IDS) as SettlementChain[]) {
+      const usd = Number(payload[COINGECKO_IDS[chain]]?.usd)
+      if (Number.isFinite(usd) && usd > 0) rates[chain] = usd
+    }
+    cachedRates = { rates, expiresAt: now + 30_000 }
+    return rates
+  } catch {
+    cachedRates = { rates: FALLBACK_USD, expiresAt: now + 30_000 }
+    return FALLBACK_USD
+  }
 }
 
 export function createX402Quote(input: X402QuoteRequest): X402Quote {
@@ -109,35 +151,37 @@ export function createX402Quote(input: X402QuoteRequest): X402Quote {
   }
 
   const amountUsd = Number((input.units * input.unitPriceUsd).toFixed(6))
-  const amountUnits = parseUnits(amountUsd, CHAIN_DECIMALS[input.chain])
+  const rates = cachedRates?.rates ?? FALLBACK_USD
+  void refreshNativeUsdRates()
+  const options = (['stellar', 'bnb', 'base'] as SettlementChain[]).map((chain) => {
+    const nativeAmount = amountUsd / rates[chain]
+    return { chain, amount: `${formatNativeAmount(nativeAmount)} ${CHAIN_ASSET[chain]}`, amountUnits: parseUnits(nativeAmount, CHAIN_DECIMALS[chain]), address: DEFAULT_ADDRESSES[chain] }
+  })
+  const preferredChain = input.chain ?? 'bnb'
+  const preferred = options.find((option) => option.chain === preferredChain) ?? options[0]
   const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString()
-  const paymentRef = `${input.serviceId}:${input.chain}:${Date.now()}`
-
-  const quote: X402Quote = {
-    code: 402,
-    serviceId: input.serviceId,
-    chain: input.chain,
-    payer: input.payer,
-    amountUsd,
-    amountUnits,
-    expiresAt,
-    paymentRef,
-    memo: `x402/${input.serviceId}/${input.chain}`,
-  }
-
+  const quoteId = `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+  const paymentRef = `${input.serviceId}:${preferred.chain}:${Date.now()}`
+  const quote: X402Quote = { code: 402, quoteId, service: input.serviceId, serviceId: input.serviceId, chain: preferred.chain, payer: input.payer, amountUsd, amountUnits: preferred.amountUnits, address: preferred.address, options, expiresAt, paymentRef, memo: `x402/${input.serviceId}/${quoteId}` }
   quoteRegistry.set(paymentRef, quote)
+  quoteRegistry.set(quoteId, quote)
   return quote
 }
 
-export function verifyX402Settlement(input: X402Settlement): X402Receipt {
-  const txLooksValid = /^0x[a-fA-F0-9]{64}$/.test(input.txHash) || /^[a-fA-F0-9]{64}$/.test(input.txHash)
+export async function verifyX402Settlement(input: X402Settlement, quote?: X402Quote): Promise<X402Receipt> {
+  const paymentRef = input.paymentRef || input.quoteId || ''
+  const option = quote?.options.find((item) => item.chain === input.chain)
+  if (input.chain === 'stellar') {
+    const accepted = /^0x[a-fA-F0-9]{64}$/.test(input.txHash) || /^[a-fA-F0-9]{64}$/.test(input.txHash) || /^[A-Z0-9]{64}$/.test(input.txHash)
+    return { accepted, quoteId: quote?.quoteId, paymentRef, settledAt: new Date().toISOString(), txHash: input.txHash, chain: input.chain }
+  }
 
-  return {
-    accepted: txLooksValid,
-    paymentRef: input.paymentRef,
-    settledAt: new Date().toISOString(),
-    txHash: input.txHash,
-    chain: input.chain,
+  if (!option) return { accepted: false, quoteId: quote?.quoteId, paymentRef, settledAt: new Date().toISOString(), txHash: input.txHash, chain: input.chain }
+  try {
+    const verified = await verifyEvmPayment({ chain: input.chain as EvmSettlementChain, txHash: input.txHash, expectedTo: option.address, expectedValueWei: option.amountUnits, expectedFrom: input.paidBy })
+    return { accepted: verified.accepted, quoteId: quote?.quoteId, paymentRef, settledAt: new Date().toISOString(), txHash: input.txHash, chain: input.chain }
+  } catch {
+    return { accepted: false, quoteId: quote?.quoteId, paymentRef, settledAt: new Date().toISOString(), txHash: input.txHash, chain: input.chain }
   }
 }
 
@@ -145,37 +189,36 @@ export function listX402ExplorerReceipts(filters: X402ReceiptQuery = {}) {
   return listX402Receipts(filters)
 }
 
-export function getX402ReceiptById(receiptId: string): X402ExplorerReceipt | undefined {
-  return getX402Receipt(receiptId)
-}
-
 export function settleX402(input: X402Settlement): X402SettlementResult {
-  const quote = quoteRegistry.get(input.paymentRef)
-  if (!quote) {
-    return { ok: false, error: 'Quote not found for paymentRef' }
-  }
+  const paymentRef = input.paymentRef || input.quoteId || ''
+  const quote = quoteRegistry.get(paymentRef)
+  if (!quote) return { ok: false, error: 'Quote not found for paymentRef' }
 
-  if (quote.chain !== input.chain) {
-    return { ok: false, error: 'Settlement chain does not match quote chain' }
-  }
+  const isQuoteIdSettlement = Boolean(input.quoteId) && !input.paymentRef
+  if (!isQuoteIdSettlement && quote.chain !== input.chain) return { ok: false, error: 'Settlement chain does not match quote chain' }
+  const option = quote.options.find((item) => item.chain === input.chain)
+  if (!option) return { ok: false, error: 'Settlement chain is not available for quote' }
 
   const isExpired = Date.now() > new Date(quote.expiresAt).getTime()
   if (isExpired) {
-    quoteRegistry.delete(input.paymentRef)
+    quoteRegistry.delete(paymentRef)
+    quoteRegistry.delete(quote.quoteId)
     return { ok: false, error: 'Quote expired' }
   }
 
-  if (input.paidBy !== quote.payer) {
-    return { ok: false, error: 'paidBy does not match quote payer' }
+  const payer = input.paidBy || input.agentId || ''
+  if (payer && quote.payer !== 'anonymous') {
+    const isStellarPayer = input.chain === 'stellar' && StrKey.isValidEd25519PublicKey(payer)
+    const isEvmPayer = input.chain !== 'stellar' && /^0x[a-fA-F0-9]{40}$/.test(payer)
+    if (!isStellarPayer && !isEvmPayer && payer !== quote.payer) return { ok: false, error: 'paidBy does not match quote payer' }
   }
 
-  const receipt = verifyX402Settlement(input)
-  if (!receipt.accepted) {
-    return { ok: false, error: 'Invalid tx hash format' }
-  }
+  const txLooksValid = input.chain === 'stellar' ? /^0x[a-fA-F0-9]{64}$/.test(input.txHash) || /^[a-fA-F0-9]{64}$/.test(input.txHash) || /^[A-Z0-9]{64}$/.test(input.txHash) : /^0x[a-fA-F0-9]{64}$/.test(input.txHash)
+  const receipt: X402Receipt = { accepted: txLooksValid, quoteId: quote.quoteId, paymentRef, settledAt: new Date().toISOString(), txHash: input.txHash, chain: input.chain }
+  if (!receipt.accepted) return { ok: false, error: 'Invalid tx hash format' }
 
   receipt.amountUsd = quote.amountUsd
-  receipt.amountUnits = quote.amountUnits
+  receipt.amountUnits = option.amountUnits
 
   const storedReceipt = saveX402Receipt({
     ...receipt,
@@ -184,17 +227,17 @@ export function settleX402(input: X402Settlement): X402SettlementResult {
     service: quote.serviceId,
     amount: `${quote.amountUsd} USD`,
     serviceId: quote.serviceId,
-    agent: quote.payer,
+    agent: input.agentId || input.paidBy || quote.payer,
     amountUsd: quote.amountUsd,
-    amountUnits: quote.amountUnits,
+    amountUnits: option.amountUnits,
     passportVerified: true,
     reputationTier: quote.amountUsd >= 1 ? 'gold' : 'standard',
   })
 
-  quoteRegistry.delete(input.paymentRef)
+  quoteRegistry.delete(paymentRef)
+  quoteRegistry.delete(quote.quoteId)
   return { ok: true, receipt: storedReceipt }
 }
-
 
 export type X402SubscriptionPlan = 'starter' | 'growth' | 'pro' | 'custom' | 'monthly'
 export type X402SubscriptionStatus = 'active' | 'grace' | 'paused'
