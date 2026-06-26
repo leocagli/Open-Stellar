@@ -26,8 +26,8 @@ export interface EvmPaymentVerification {
 }
 
 const DEFAULT_RPC_URLS: Record<EvmSettlementChain, string> = {
-  bnb: 'https://bsc-dataseed.binance.org',
-  base: 'https://mainnet.base.org',
+  bnb: process.env.NEXT_PUBLIC_BNB_RPC_URL || 'https://bsc-dataseed.binance.org',
+  base: process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org',
 }
 
 const EVM_CHAINS = {

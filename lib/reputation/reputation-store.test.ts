@@ -13,7 +13,7 @@ describe('reputation scoring', () => {
         { id: 'legend', rarity: 'legendary', awardedAt: '2026-01-01T00:00:00.000Z' },
       ],
       infractions: 2,
-    })).toBe(1300)
+    })).toBe(1000)
   })
 
   it('maps thresholds to tiers', () => {

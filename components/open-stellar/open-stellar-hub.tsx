@@ -506,9 +506,9 @@ export function OpenStellarHub() {
 
     if (event.type === "district.unlocked") {
       audioEngine.playEvent("district_win")
-      const districtId = (event as any).districtId ?? (event as any).district?.id
+      const districtId = "districtId" in event ? event.districtId : event.district?.id
       const district = DISTRICTS.find((candidate) => candidate.id === districtId)
-      const districtName = (event as any).district?.name ?? district?.name ?? districtId ?? "a district"
+      const districtName = ("district" in event && event.district?.name) || district?.name || districtId || "a district"
       pushLog(`district unlocked: ${districtName}`, "success", event.agentId ?? "system")
       toast.success("District unlocked", { description: String(districtName) })
       if (district) {

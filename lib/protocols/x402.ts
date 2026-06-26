@@ -121,7 +121,13 @@ async function refreshNativeUsdRates(fetcher: typeof fetch = fetch): Promise<Rec
     const rates = { ...FALLBACK_USD }
     for (const chain of Object.keys(COINGECKO_IDS) as SettlementChain[]) {
       const usd = Number(payload[COINGECKO_IDS[chain]]?.usd)
-      if (Number.isFinite(usd) && usd > 0) rates[chain] = usd
+      if (Number.isFinite(usd) && usd > 0) {
+        const fallback = FALLBACK_USD[chain]
+        const deviation = Math.abs(usd - fallback) / fallback
+        if (deviation <= 0.20) {
+          rates[chain] = usd
+        }
+      }
     }
     cachedRates = { rates, expiresAt: now + 30_000 }
     return rates

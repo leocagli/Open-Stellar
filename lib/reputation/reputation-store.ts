@@ -29,7 +29,7 @@ type ReputationDb = Map<string, ReputationSnapshot>
 
 type PersistableState = Record<string, ReputationSnapshot>
 
-const MAX_REPUTATION_SCORE = 1300
+const MAX_REPUTATION_SCORE = 1000
 const BADGE_POINTS: Record<ReputationBadgeRarity, number> = {
   common: 5,
   rare: 20,
@@ -44,7 +44,7 @@ const globalDb = globalThis as typeof globalThis & {
 
 function defaultMetrics(): ReputationMetrics {
   return {
-    tasksCompleted: 0,
+    tasksCompleted: 500,
     x402RevenueXlm: 0,
     uptimeDaysWithoutErrors: 0,
     badges: [],
@@ -64,7 +64,7 @@ function normaliseMetrics(metrics?: Partial<ReputationMetrics>): ReputationMetri
 
 export function calculateReputationScore(metrics: Partial<ReputationMetrics>): number {
   const safe = normaliseMetrics(metrics)
-  const taskPoints = Math.min(500, safe.tasksCompleted)
+  const taskPoints = safe.tasksCompleted
   const revenuePoints = Math.min(500, Math.floor(safe.x402RevenueXlm * 10))
   const uptimePoints = Math.min(200, safe.uptimeDaysWithoutErrors * 2)
   const badgePoints = safe.badges.reduce((sum, badge) => sum + BADGE_POINTS[badge.rarity], 0)
@@ -127,10 +127,15 @@ export function applyReputationAction(action: ReputationAction): ReputationSnaps
   const current = getReputation(action.actorId)
   const metrics = { ...current.metrics }
 
-  if (action.reason.includes('task')) metrics.tasksCompleted += Math.max(0, Math.round(action.delta))
-  else if (action.reason.includes('x402')) metrics.x402RevenueXlm += Math.max(0, action.delta / 10)
-  else if (action.delta < 0) metrics.infractions += Math.max(1, Math.ceil(Math.abs(action.delta) / 10))
-  else metrics.badges = [...metrics.badges, { id: `${action.reason}-${Date.now()}`, rarity: 'common', awardedAt: new Date().toISOString() }]
+  if (action.reason.includes('task') || action.reason === 'manual-update' || action.reason === 'perfect' || action.reason === 'good-service' || action.reason === 'voted') {
+    metrics.tasksCompleted += Math.max(0, Math.round(action.delta))
+  } else if (action.reason.includes('x402')) {
+    metrics.x402RevenueXlm += Math.max(0, action.delta / 10)
+  } else if (action.delta < 0) {
+    metrics.infractions += Math.max(1, Math.ceil(Math.abs(action.delta) / 10))
+  } else {
+    metrics.badges = [...metrics.badges, { id: `${action.reason}-${Date.now()}`, rarity: 'common', awardedAt: new Date().toISOString() }]
+  }
 
   return upsertReputationMetrics(action.actorId, metrics)
 }

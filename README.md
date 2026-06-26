@@ -173,6 +173,10 @@ NEXT_PUBLIC_MOCK_MODE=false
 
 # Better Stack / Logtail structured API logs (opcional)
 LOGTAIL_SOURCE_TOKEN=logtail-source-token
+
+# Custom EVM RPC URLs for x402 settlement (opcional)
+NEXT_PUBLIC_BNB_RPC_URL=https://tu-rpc-bnb.com
+NEXT_PUBLIC_BASE_RPC_URL=https://tu-rpc-base.com
 ```
 
 Obtener WalletConnect project ID en [cloud.walletconnect.com](https://cloud.walletconnect.com).
