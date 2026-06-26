@@ -1,5 +1,6 @@
 import type { AgentStatus } from "@/lib/types"
 import type { X402Receipt } from "@/lib/protocols/x402"
+import type { Quest } from "@/lib/quests/quest-store"
 
 export interface AgentTask {
   id: string
@@ -31,6 +32,8 @@ export type SystemEvent =
   | (BaseEvent & { type: "agent.xp"; agentId: string; xp: number; level: number })
   | (BaseEvent & { type: "badge.unlocked"; agentId: string; badge: Badge })
   | (BaseEvent & { type: "district.unlocked"; districtId?: import("@/lib/types").DistrictId; district?: import("@/lib/types").District })
+  | (BaseEvent & { type: "quest.abandoned"; questId: string; quest: Quest })
+  | (BaseEvent & { type: "quest.expired"; questId: string; quest: Quest })
 
 
 
