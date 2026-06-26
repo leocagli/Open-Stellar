@@ -6,8 +6,8 @@ import { PATCH as updateSubTaskRoute } from "@/app/api/quests/[id]/subtasks/[sub
 import { getQuestById, getSubTasks } from "@/lib/gamification/quests"
 
 const context = (id: string) => ({ params: Promise.resolve({ id }) })
-const subtaskContext = (id: string, subTaskId: string) => ({
-  params: Promise.resolve({ id, subTaskId }),
+const subtaskContext = (id: string, subtaskId: string) => ({
+  params: Promise.resolve({ id, subtaskId }),
 })
 
 function makeCreateRequest(body: object): Request {

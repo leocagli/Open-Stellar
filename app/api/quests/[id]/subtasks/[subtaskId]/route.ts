@@ -3,13 +3,13 @@ import { NextResponse } from "next/server"
 import { getQuestById, getSubTasks, updateSubTask } from "@/lib/gamification/quests"
 
 type Context = {
-  params: Promise<{ id: string; subTaskId: string }>
+  params: Promise<{ id: string; subtaskId: string }>
 }
 
 export async function PATCH(req: Request, context: Context) {
-  const { id, subTaskId } = await context.params
+  const { id, subtaskId } = await context.params
   const questId = decodeURIComponent(id)
-  const decodedSubTaskId = decodeURIComponent(subTaskId)
+  const decodedSubTaskId = decodeURIComponent(subtaskId)
   const quest = getQuestById(questId)
 
   if (!quest) {
