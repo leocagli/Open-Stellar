@@ -33,10 +33,10 @@ describe("GET /api/cron/passport-expiry", () => {
 
   afterEach(() => {
     resetPassportExpiryStore()
+    delete process.env.CRON_SECRET
   })
 
   it("returns 401 when CRON_SECRET is set and no auth header", async () => {
-    const originalSecret = process.env.CRON_SECRET
     process.env.CRON_SECRET = "test-secret"
 
     const req = new Request("http://localhost/api/cron/passport-expiry")
@@ -46,12 +46,9 @@ describe("GET /api/cron/passport-expiry", () => {
     const body = await res.json()
     expect(body.ok).toBe(false)
     expect(body.error).toBe("Unauthorized cron request")
-
-    process.env.CRON_SECRET = originalSecret
   })
 
   it("returns 200 with correct Bearer token", async () => {
-    const originalSecret = process.env.CRON_SECRET
     process.env.CRON_SECRET = "test-secret"
 
     const past = Date.now() - 1000
@@ -68,12 +65,9 @@ describe("GET /api/cron/passport-expiry", () => {
     expect(body.expired).toBe(1)
     expect(body.checkedAt).toBeDefined()
     expect(body.checkedCount).toBe(1)
-
-    process.env.CRON_SECRET = originalSecret
   })
 
   it("returns 200 with no auth when CRON_SECRET is not set", async () => {
-    const originalSecret = process.env.CRON_SECRET
     delete process.env.CRON_SECRET
 
     const req = new Request("http://localhost/api/cron/passport-expiry")
@@ -82,11 +76,11 @@ describe("GET /api/cron/passport-expiry", () => {
 
     const body = await res.json()
     expect(body.ok).toBe(true)
-
-    process.env.CRON_SECRET = originalSecret
   })
 
   it("returns correct expired count for multiple passports", async () => {
+    delete process.env.CRON_SECRET
+
     const past = Date.now() - 1000
     const future = Date.now() + 86400000
     seedPassportExpiryRecord(makePassport({ agentId: "a1", expiresAt: new Date(past).toISOString() }))
@@ -95,8 +89,10 @@ describe("GET /api/cron/passport-expiry", () => {
 
     const req = new Request("http://localhost/api/cron/passport-expiry")
     const res = await GET(req)
-    const body = await res.json()
+    expect(res.status).toBe(200)
 
+    const body = await res.json()
+    expect(body.ok).toBe(true)
     expect(body.expired).toBe(2)
     expect(body.checkedCount).toBe(3)
   })
