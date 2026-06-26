@@ -156,8 +156,13 @@ export function seedQuest(quest: Partial<StoredQuest> & { id: string }): StoredQ
     status: "in_progress",
     createdAt: new Date().toISOString(),
     assignedAgentIds: [],
+    expiresAt: null,
     ...quest,
   } as StoredQuest
+  // Ensure expiresAt is explicitly null when not provided
+  if (!("expiresAt" in quest)) {
+    full.expiresAt = null
+  }
   store.quests.set(full.id, full)
   return full
 }
