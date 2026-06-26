@@ -49,6 +49,7 @@ const subTaskSchema = {
     id: { type: "string" },
     title: { type: "string" },
     assignedAgentId: { type: "string" },
+    dependsOn: { type: "array", items: { type: "string" } },
     status: { type: "string", enum: ["pending", "in_progress", "done"] },
     completedAt: { type: "string", format: "date-time" },
   },
@@ -156,6 +157,7 @@ const spec = {
           properties: {
             title: { type: "string" },
             assignedAgentId: { type: "string" },
+            dependsOn: { type: "array", items: { type: "string" } },
           },
           required: ["title"],
         },
@@ -177,6 +179,7 @@ const spec = {
           properties: {
             status: { type: "string", enum: ["pending", "in_progress", "done"] },
             assignedAgentId: { type: "string" },
+            dependsOn: { type: "array", items: { type: "string" } },
           },
         },
         responseSchema: {
@@ -187,7 +190,25 @@ const spec = {
           },
           required: ["ok", "subTask"],
         },
-        responses: { 404: notFound },
+        responses: {
+          404: notFound,
+          409: {
+            description: "Prerequisite subtask incomplete",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    ok: { type: "boolean", enum: [false] },
+                    reason: { type: "string", enum: ["prerequisite_incomplete"] },
+                    missing: { type: "array", items: { type: "string" } },
+                  },
+                  required: ["ok", "reason", "missing"],
+                },
+              },
+            },
+          },
+        },
       }),
     },
     "/api/leaderboard": {
