@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { Activity, Check, Code2, Copy, Cpu, Download, ExternalLink, Fingerprint, History, KeyRound, Layers3, RadioTower, ReceiptText, Rocket, Server, Shield, Terminal, Wallet } from "lucide-react"
+import { useEffect, useState, type ReactNode } from "react"
+import { Activity, AlertTriangle, Check, Code2, Copy, Cpu, Download, ExternalLink, ExternalLink, Fingerprint, ReceiptText,History, KeyRound, Layers3, ListChecks, RadioTower, Rocket, Server, Shield, Terminal, Wallet } from "lucide-react"
 import type { District, MoltbotAgent } from "@/lib/types"
 import { PassportPanel } from "@/components/admin/passport-panel"
 
-type AdminTab = "overview" | "receipts" | "passport" | "private-deploy"
+type AdminTab = "overview" | "queue" | "passport" | "private-deploy" | "receipts"
 
 type Plan = {
   name: string
@@ -180,6 +180,9 @@ export function AdminConsole({ agents, districts }: AdminConsoleProps) {
             <History className="h-3.5 w-3.5" />
             Runs history
           </a>
+          <TabButton active={tab === "queue"} onClick={() => setTab("queue")} icon={<ListChecks className="h-3.5 w-3.5" />}>
+            Task queue
+          </TabButton>
           <TabButton active={tab === "passport"} onClick={() => setTab("passport")} icon={<Fingerprint className="h-3.5 w-3.5" />}>
             Agent Passport (ZK)
           </TabButton>
@@ -188,7 +191,9 @@ export function AdminConsole({ agents, districts }: AdminConsoleProps) {
           </TabButton>
         </nav>
 
-        {tab === "receipts" ? (
+        {tab === "queue" ? (
+          <TaskQueueTab />
+        ): tab === "receipts" ? (
           <ReceiptsTab />
         ) : tab === "passport" ? (
           <section className="rounded-[28px] border border-cyan-500/20 bg-slate-950/60 p-5">
@@ -678,6 +683,90 @@ function DeployStep({ n, title, text }: { n: number; title: string; text: string
         <p className="mt-1.5 font-vt323 text-lg leading-6 text-slate-400">{text}</p>
       </div>
     </div>
+  )
+}
+
+
+type QueueTask = {
+  id: string
+  type: string
+  priority: "critical" | "high" | "normal" | "low"
+  status: string
+  targetAgentId?: string
+  targetDistrict?: string
+  targetCapability?: string
+  retryCount: number
+  maxRetries: number
+  scheduledFor?: string
+  error?: string
+}
+
+function TaskQueueTab() {
+  const [tasks, setTasks] = useState<QueueTask[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const loadTasks = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/tasks?includeDeadLetter=1", { cache: "no-store" })
+      const data = await res.json()
+      setTasks(data.tasks ?? [])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadTasks()
+  }, [])
+
+  const retryTask = async (taskId: string) => {
+    await fetch(`/api/tasks/${taskId}/retry`, { method: "POST" })
+    await loadTasks()
+  }
+
+  const deadLetter = tasks.filter((task) => task.status === "dead-letter")
+  const pending = tasks.filter((task) => task.status === "pending")
+
+  return (
+    <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+      <Panel title="Queue lanes" eyebrow="Durable routing" bodyClassName="space-y-3">
+        <TelemetryRow icon={<ListChecks className="h-4 w-4" />} label="Pending tasks" value={String(pending.length)} tone="text-cyan-300" />
+        <TelemetryRow icon={<AlertTriangle className="h-4 w-4" />} label="Dead-letter tasks" value={String(deadLetter.length)} tone="text-rose-300" />
+        <p className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 font-vt323 text-lg leading-6 text-slate-300">
+          Agents pull prioritized work by direct agent, district, or capability. Failures retry with exponential backoff before moving into the dead-letter lane.
+        </p>
+      </Panel>
+
+      <Panel title="Dead-letter retry" eyebrow="Manual recovery" bodyClassName="space-y-3">
+        {loading ? (
+          <p className="font-vt323 text-lg text-slate-400">Loading queue...</p>
+        ) : deadLetter.length === 0 ? (
+          <p className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 font-vt323 text-lg text-emerald-200">
+            No dead-letter items. Failed tasks will appear here with one-click retry.
+          </p>
+        ) : (
+          deadLetter.map((task) => (
+            <div key={task.id} className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-mono text-sm text-rose-100">{task.id}</p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">{task.type} / {task.priority}</p>
+                  <p className="mt-2 text-sm text-slate-300">{task.error ?? "No error recorded"}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => retryTask(task.id)}
+                  className="rounded-full border border-rose-300/40 px-3 py-2 text-xs uppercase tracking-[0.2em] text-rose-100 transition hover:bg-rose-300/10"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </Panel>
+    </section>
   )
 }
 
