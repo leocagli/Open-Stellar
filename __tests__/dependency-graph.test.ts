@@ -87,7 +87,7 @@ describe("hasCycle", () => {
 
     const result = hasCycle(subtasks, "A", "A")
     expect(result.hasCycle).toBe(true)
-    expect(result.cycle).toEqual(["A", "A"])
+    expect(result.cycle).toEqual(["A"])
   })
 
   it("detects cycle on third edge of 3-node chain", () => {
