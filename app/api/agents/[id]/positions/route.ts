@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import {
   getAgentPositionHistoryPaginated,
-  getApiMaxLimit,
 } from "@/lib/agents/agent-position-store"
 
 export const dynamic = "force-dynamic"
@@ -10,20 +9,17 @@ interface RouteContext {
   params: Promise<{ id: string }>
 }
 
-function parseLimit(value: string | null): { limit: number; error?: string } {
+function parseLimit(value: string | null): number {
   if (value === null || !value.trim()) {
-    return { limit: 50 }
+    return 50
   }
 
   const num = Number(value)
-  if (!Number.isFinite(num) || num < 1) {
-    return { limit: 50, error: "limit must be a positive integer" }
-  }
-  if (num > getApiMaxLimit()) {
-    return { limit: 50, error: `limit must be at most ${getApiMaxLimit()}` }
+  if (!Number.isFinite(num)) {
+    return 50
   }
 
-  return { limit: Math.trunc(num) }
+  return Math.max(1, Math.min(Math.trunc(num), 1000))
 }
 
 export async function GET(req: Request, context: RouteContext) {
@@ -31,14 +27,7 @@ export async function GET(req: Request, context: RouteContext) {
     const { id } = await context.params
     const url = new URL(req.url)
 
-    const { limit, error: limitError } = parseLimit(url.searchParams.get("limit"))
-    if (limitError) {
-      return NextResponse.json(
-        { ok: false, error: limitError },
-        { status: 400 },
-      )
-    }
-
+    const limit = parseLimit(url.searchParams.get("limit"))
     const before = url.searchParams.get("before")
     const after = url.searchParams.get("after")
 
