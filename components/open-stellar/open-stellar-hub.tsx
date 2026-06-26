@@ -11,8 +11,10 @@ import { CityAudioEngine } from "@/lib/audio/city-audio"
 import { DISTRICTS, createAgents, generateChatMessage, getRandomTask } from "@/lib/data"
 import { LEGAL_LINKS } from "@/lib/legal-links"
 import type { PublishedSystemEvent } from "@/lib/events/system-events"
+import { XP_AWARDS } from "@/lib/gamification/constants"
 import { getActiveDistrictEvent, getDistrictStandings } from "@/lib/gamification/events"
 import { upgradeAgentSkill } from "@/lib/gamification/skill-upgrades"
+import { awardSkillXP, checkLevelUp, getXpToNextLevel } from "@/lib/gamification/xp"
 import type { AgentAppearance, ChatMessage, LogEntry, MoltbotAgent, WalletTransaction } from "@/lib/types"
 
 function nowTime() {
@@ -286,7 +288,14 @@ export function OpenStellarHub() {
   }, [])
 
   const agentsRef = useRef(agents)
-  useEffect(() => { agentsRef.current = agents }, [agents])
+  useEffect(() => {
+    agentsRef.current = agents
+    for (const agent of agents) {
+      if (!agentLevelsRef.current.has(agent.id)) {
+        agentLevelsRef.current.set(agent.id, agent.level ?? 1)
+      }
+    }
+  }, [agents])
 
   useEffect(() => {
     pushLog("Open-Stellar v0 frontend initialized", "success")
@@ -393,12 +402,14 @@ export function OpenStellarHub() {
 
         if (event.type === "task.completed") {
           animatedAgentBox.current = agent
+          const skillId = event.skillId ?? agent.skills[0]?.id
           return {
             ...agent,
             status: "active",
             currentTask: event.result.summary || getRandomTask(agent.district),
             taskProgress: 0,
             tasksCompleted: agent.tasksCompleted + 1,
+            skills: awardSkillXP(agent.skills, skillId, XP_AWARDS.TASK_COMPLETED),
           }
         }
 
@@ -407,6 +418,16 @@ export function OpenStellarHub() {
           return {
             ...agent,
             status: "active",
+          }
+        }
+
+        if (event.type === "agent.xp") {
+          const level = event.level
+          return {
+            ...agent,
+            xp: event.totalXp ?? (agent.xp ?? 0) + event.xp,
+            level,
+            xpToNext: event.xpToNext ?? getXpToNextLevel(level),
           }
         }
 
@@ -454,6 +475,7 @@ export function OpenStellarHub() {
         showAgentOverlay(agent, `+${event.xp} XP`, "#22d3ee")
         const previousLevel = agentLevelsRef.current.get(event.agentId) ?? event.level
         if (event.level > previousLevel) {
+          toast.success("Agent leveled up", { description: `${agent.name} reached level ${event.level}` })
           spawnParticles("level-up", agent.pixelX + 8, agent.pixelY, {
             color: agent.color,
             level: event.level,
@@ -491,6 +513,11 @@ export function OpenStellarHub() {
           spreadW: district.w * 0.7,
         })
       }
+      return
+    }
+
+    if (event.type === "agent.registry") {
+      pushLog(`registry ${event.action}: ${event.agent.agentId}`, "info", event.agentId)
       return
     }
 
@@ -683,9 +710,17 @@ export function OpenStellarHub() {
           const progressDelta = Math.random() * 14
           const taskProgress = Math.min(100, agent.taskProgress + progressDelta)
           const finishedTask = taskProgress >= 100
+          const gainedXp = finishedTask ? XP_AWARDS.TASK_COMPLETED + (progressDelta >= 12 ? XP_AWARDS.FAST_TASK_BONUS : 0) : 0
+          const nextXp = (agent.xp ?? 0) + gainedXp
+          const levelState = finishedTask ? checkLevelUp(nextXp, agent.level ?? 1) : null
+          const skillId = agent.skills[0]?.id
 
           return {
             ...agent,
+            xp: finishedTask ? nextXp : agent.xp,
+            level: levelState?.level ?? agent.level ?? 1,
+            xpToNext: levelState?.xpToNext ?? agent.xpToNext ?? getXpToNextLevel(agent.level ?? 1),
+            skills: finishedTask ? awardSkillXP(agent.skills, skillId, XP_AWARDS.TASK_COMPLETED) : agent.skills,
             cpu: Math.max(10, Math.min(98, agent.cpu + (Math.random() - 0.5) * 10)),
             memory: Math.max(20, Math.min(95, agent.memory + (Math.random() - 0.5) * 6)),
             status: finishedTask
