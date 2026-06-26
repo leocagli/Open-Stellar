@@ -150,8 +150,11 @@ export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: n
   ctx.restore()
 
   // Border glow
-  ctx.strokeStyle = d.color + "55"
-  ctx.lineWidth = 2
+  const eventPulse = eventState ? Math.sin(tick * 0.16) * 0.25 + 0.75 : 0
+  ctx.shadowColor = eventState ? d.color : "transparent"
+  ctx.shadowBlur = eventState ? (eventState.isLeading ? 24 : 12) * eventPulse : 0
+  ctx.strokeStyle = eventState ? d.color + (eventState.isLeading ? "dd" : "99") : d.color + "55"
+  ctx.lineWidth = eventState?.isLeading ? 4 : 2
   ctx.beginPath()
   ctx.moveTo(d.x + radius, d.y)
   ctx.lineTo(d.x + d.w - radius, d.y)
@@ -164,6 +167,7 @@ export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: n
   ctx.quadraticCurveTo(d.x, d.y, d.x + radius, d.y)
   ctx.closePath()
   ctx.stroke()
+  ctx.shadowBlur = 0
 
   // Animated corner glow pulses
   const pulse = Math.sin(tick * 0.05) * 0.3 + 0.7
@@ -182,11 +186,18 @@ export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: n
 
   // District label with background pill
   ctx.font = "bold 10px monospace"
-  const labelW = ctx.measureText(d.name.toUpperCase()).width + 12
+  const districtLabel = d.name.toUpperCase()
+  const scoreLabel = eventState?.scoreLabel ? ` #${eventState.rank} ${eventState.scoreLabel}${eventState.multiplier && eventState.multiplier > 1 ? ` ${eventState.multiplier}x` : ""}` : ""
+  const labelW = Math.max(ctx.measureText(districtLabel).width, scoreLabel ? ctx.measureText(scoreLabel).width : 0) + 12
   ctx.fillStyle = d.bgColor + "dd"
-  ctx.fillRect(d.x + 6, d.y + 6, labelW, 18)
+  ctx.fillRect(d.x + 6, d.y + 6, labelW, scoreLabel ? 30 : 18)
   ctx.fillStyle = d.color
-  ctx.fillText(d.name.toUpperCase(), d.x + 12, d.y + 18)
+  ctx.fillText(districtLabel, d.x + 12, d.y + 18)
+  if (scoreLabel) {
+    ctx.font = "bold 9px monospace"
+    ctx.fillStyle = eventState?.isLeading ? "#fbbf24" : "#cbd5e1"
+    ctx.fillText(scoreLabel, d.x + 12, d.y + 30)
+  }
 }
 
 // Cache for processed sprites: key = src+color
@@ -460,6 +471,17 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
     ctx.stroke()
   }
 
+  const isDistrictLeader = (agent as MoltbotAgent & { isDistrictLeader?: boolean }).isDistrictLeader
+
+  if (isDistrictLeader) {
+    const pulse = Math.sin(tick * 0.1) * 0.25 + 0.75
+    ctx.strokeStyle = `${c}${Math.round(pulse * 120).toString(16).padStart(2, "0")}`
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(cx, cy + 4, 20 + pulse * 3, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+
   if (agent.status === "offline") {
     const pulse = Math.sin(tick * 0.16) * 0.35 + 0.65
     ctx.strokeStyle = `rgba(248,113,113,${pulse})`
@@ -545,6 +567,16 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
     ctx.textAlign = "left"
   }
 
+  // Crown overlay for top global performers. The city canvas derives the top three
+  // from completed task totals so the visual stays in sync with leaderboard data.
+  const globalRank = (agent as MoltbotAgent & { leaderboardRank?: number }).leaderboardRank
+  if (globalRank && globalRank <= 3) {
+    ctx.font = "bold 14px serif"
+    ctx.textAlign = "center"
+    ctx.fillText("👑", cx, drawY - 4)
+    ctx.textAlign = "left"
+  }
+
   // Status indicator dot (top right of sprite)
   const statusColors: Record<string, string> = {
     active: "#34d399",
@@ -591,6 +623,19 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
   ctx.strokeStyle = "#0a0e17"
   ctx.lineWidth = 0.5
   ctx.strokeRect(sx, sy, sw, sh)
+
+  if (agent.deployment === "cloud") {
+    ctx.save()
+    ctx.font = "bold 7px monospace"
+    ctx.textAlign = "center"
+    ctx.fillStyle = "#0f172a"
+    ctx.fillRect(drawX + 2, drawY - 9, 32, 9)
+    ctx.strokeStyle = "#38bdf8"
+    ctx.strokeRect(drawX + 2, drawY - 9, 32, 9)
+    ctx.fillStyle = "#7dd3fc"
+    ctx.fillText("CLOUD", drawX + 18, drawY - 2)
+    ctx.restore()
+  }
 
   // Name label
   ctx.font = "bold 8px monospace"

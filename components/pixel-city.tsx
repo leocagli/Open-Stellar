@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from "react"
 import type { MoltbotAgent, District } from "@/lib/types"
 import { drawGrid, drawRoads, drawDistrict, drawBot } from "@/lib/renderer"
+import type { DistrictStanding } from "@/lib/gamification/events"
 import { ParticleSystem, type ParticleEvent, type ParticleOpts } from "@/lib/renderer/particles"
 import type { CityAudioEngine } from "@/lib/audio/city-audio"
 
@@ -142,6 +143,7 @@ interface PixelCityProps {
   floatingOverlays?: FloatingOverlay[]
   particleTriggers?: ParticleTrigger[]
   audioEngine?: CityAudioEngine
+  districtStandings?: DistrictStanding[]
 }
 
 const statusSymbols: Record<string, string> = {
@@ -164,6 +166,7 @@ export function PixelCity({
   floatingOverlays = [],
   particleTriggers = [],
   audioEngine,
+  districtStandings = [],
 }: PixelCityProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particleCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -339,6 +342,8 @@ export function PixelCity({
       drawDistrict(ctx, d, tick, images[d.id], colorBlindMode)
     }
 
+    const topGlobalRanks = new Map([...agents].sort((a, b) => b.tasksCompleted - a.tasksCompleted).slice(0, 3).map((agent, index) => [agent.id, index + 1]))
+    const districtLeaderIds = new Set(districts.map((district) => [...agents].filter((agent) => agent.district === district.id).sort((a, b) => b.tasksCompleted - a.tasksCompleted)[0]?.id).filter(Boolean))
     const sorted = [...agents].sort((a, b) => a.pixelY - b.pixelY)
     for (const agent of sorted) {
       const spriteIdx = agent.spriteId % sprites.length

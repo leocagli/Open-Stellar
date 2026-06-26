@@ -6,11 +6,15 @@ import { PixelCity, type FloatingOverlay, type ParticleTrigger, type TxAnimation
 import { SidebarPanel } from "@/components/sidebar-panel"
 import { PriceTicker } from "@/components/price-display"
 import { AudioControls } from "@/components/audio-controls"
+import { DistrictEventOverlay } from "@/components/open-stellar/district-event-overlay"
 import { CityAudioEngine } from "@/lib/audio/city-audio"
 import { DISTRICTS, createAgents, generateChatMessage, getRandomTask } from "@/lib/data"
 import { LEGAL_LINKS } from "@/lib/legal-links"
 import type { PublishedSystemEvent } from "@/lib/events/system-events"
+import { XP_AWARDS } from "@/lib/gamification/constants"
+import { getActiveDistrictEvent, getDistrictStandings } from "@/lib/gamification/events"
 import { upgradeAgentSkill } from "@/lib/gamification/skill-upgrades"
+import { awardSkillXP, checkLevelUp, getXpToNextLevel } from "@/lib/gamification/xp"
 import type { AgentAppearance, ChatMessage, LogEntry, MoltbotAgent, WalletTransaction } from "@/lib/types"
 
 function nowTime() {
@@ -218,6 +222,8 @@ export function OpenStellarHub() {
   const [hasRealtimeEvents, setHasRealtimeEvents] = useState(false)
   const fallbackLoggedRef = useRef(false)
   const [audioEngine] = useState(() => new CityAudioEngine())
+  const [activeDistrictEvent, setActiveDistrictEvent] = useState(() => getActiveDistrictEvent())
+  const lastLeadingDistrictRef = useRef<string | null>(null)
 
   useEffect(() => {
     return () => audioEngine.dispose()
@@ -286,7 +292,14 @@ export function OpenStellarHub() {
   }, [])
 
   const agentsRef = useRef(agents)
-  useEffect(() => { agentsRef.current = agents }, [agents])
+  useEffect(() => {
+    agentsRef.current = agents
+    for (const agent of agents) {
+      if (!agentLevelsRef.current.has(agent.id)) {
+        agentLevelsRef.current.set(agent.id, agent.level ?? 1)
+      }
+    }
+  }, [agents])
 
   useEffect(() => {
     pushLog("Open-Stellar v0 frontend initialized", "success")
@@ -341,6 +354,36 @@ export function OpenStellarHub() {
     []
   )
 
+
+  const districtStandings = useMemo(
+    () => getDistrictStandings(agents),
+    [agents]
+  )
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setActiveDistrictEvent(getActiveDistrictEvent())
+    }, 60_000)
+
+    return () => window.clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    const leader = districtStandings[0]
+    if (!leader) return
+    const previousLeader = lastLeadingDistrictRef.current
+    lastLeadingDistrictRef.current = leader.districtId
+    if (!previousLeader || previousLeader === leader.districtId) return
+
+    const district = DISTRICTS.find((candidate) => candidate.id === leader.districtId)
+    if (!district) return
+    pushLog(`${leader.districtName} takes the lead in ${activeDistrictEvent.challenge.name}`, "success")
+    spawnParticles("district-win", district.x + district.w / 2, district.y, {
+      color: district.color,
+      spreadW: district.w * 0.7,
+    })
+  }, [activeDistrictEvent.challenge.name, districtStandings, pushLog, spawnParticles])
+
   const applySystemEvent = useCallback((event: PublishedSystemEvent) => {
     const animatedAgentBox: { current: MoltbotAgent | null } = { current: null }
 
@@ -363,12 +406,14 @@ export function OpenStellarHub() {
 
         if (event.type === "task.completed") {
           animatedAgentBox.current = agent
+          const skillId = event.skillId ?? agent.skills[0]?.id
           return {
             ...agent,
             status: "active",
             currentTask: event.result.summary || getRandomTask(agent.district),
             taskProgress: 0,
             tasksCompleted: agent.tasksCompleted + 1,
+            skills: awardSkillXP(agent.skills, skillId, XP_AWARDS.TASK_COMPLETED),
           }
         }
 
@@ -377,6 +422,16 @@ export function OpenStellarHub() {
           return {
             ...agent,
             status: "active",
+          }
+        }
+
+        if (event.type === "agent.xp") {
+          const level = event.level
+          return {
+            ...agent,
+            xp: event.totalXp ?? (agent.xp ?? 0) + event.xp,
+            level,
+            xpToNext: event.xpToNext ?? getXpToNextLevel(level),
           }
         }
 
@@ -424,6 +479,7 @@ export function OpenStellarHub() {
         showAgentOverlay(agent, `+${event.xp} XP`, "#22d3ee")
         const previousLevel = agentLevelsRef.current.get(event.agentId) ?? event.level
         if (event.level > previousLevel) {
+          toast.success("Agent leveled up", { description: `${agent.name} reached level ${event.level}` })
           spawnParticles("level-up", agent.pixelX + 8, agent.pixelY, {
             color: agent.color,
             level: event.level,
@@ -525,6 +581,34 @@ export function OpenStellarHub() {
     }
   }, [applySystemEvent, pushLog])
 
+
+  useEffect(() => {
+    let stopped = false
+
+    const syncCloudAgents = async () => {
+      try {
+        const res = await fetch("/api/admin/agents", { cache: "no-store" })
+        if (!res.ok) return
+        const data = await res.json() as { agents?: MoltbotAgent[] }
+        if (stopped || !Array.isArray(data.agents) || data.agents.length === 0) return
+        setAgents((prev) => {
+          const existing = new Set(prev.map((agent) => agent.id))
+          const nextCloudAgents = data.agents!.filter((agent) => !existing.has(agent.id))
+          return nextCloudAgents.length > 0 ? [...prev, ...nextCloudAgents] : prev
+        })
+      } catch {
+        // Cloud agent provisioning is optional for the local simulation.
+      }
+    }
+
+    syncCloudAgents()
+    const interval = window.setInterval(syncCloudAgents, 15_000)
+    return () => {
+      stopped = true
+      window.clearInterval(interval)
+    }
+  }, [])
+
   useEffect(() => {
     let stopped = false
 
@@ -625,9 +709,17 @@ export function OpenStellarHub() {
           const progressDelta = Math.random() * 14
           const taskProgress = Math.min(100, agent.taskProgress + progressDelta)
           const finishedTask = taskProgress >= 100
+          const gainedXp = finishedTask ? XP_AWARDS.TASK_COMPLETED + (progressDelta >= 12 ? XP_AWARDS.FAST_TASK_BONUS : 0) : 0
+          const nextXp = (agent.xp ?? 0) + gainedXp
+          const levelState = finishedTask ? checkLevelUp(nextXp, agent.level ?? 1) : null
+          const skillId = agent.skills[0]?.id
 
           return {
             ...agent,
+            xp: finishedTask ? nextXp : agent.xp,
+            level: levelState?.level ?? agent.level ?? 1,
+            xpToNext: levelState?.xpToNext ?? agent.xpToNext ?? getXpToNextLevel(agent.level ?? 1),
+            skills: finishedTask ? awardSkillXP(agent.skills, skillId, XP_AWARDS.TASK_COMPLETED) : agent.skills,
             cpu: Math.max(10, Math.min(98, agent.cpu + (Math.random() - 0.5) * 10)),
             memory: Math.max(20, Math.min(95, agent.memory + (Math.random() - 0.5) * 6)),
             status: finishedTask
@@ -796,7 +888,10 @@ export function OpenStellarHub() {
           floatingOverlays={floatingOverlays}
           particleTriggers={particleTriggers}
           audioEngine={audioEngine}
+          districtStandings={districtStandings}
         />
+
+        <DistrictEventOverlay event={activeDistrictEvent} standings={districtStandings} />
 
         <AudioControls engine={audioEngine} />
 
