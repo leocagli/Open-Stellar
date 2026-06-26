@@ -443,6 +443,12 @@ export function checkX402Subscription(agentId: string, serviceId: string, option
   }
 }
 
+export function getX402SubscriptionById(subscriptionId: string): X402Subscription | undefined {
+  const id = subscriptionId.trim()
+  if (!id) return undefined
+  return Array.from(subscriptionRegistry.values()).find((subscription) => subscription.id === id)
+}
+
 export function listX402Subscriptions() {
   const subscriptions = Array.from(subscriptionRegistry.values()).sort((a, b) => a.renewsAt.localeCompare(b.renewsAt))
   const active = subscriptions.filter((subscription) => subscription.active)
