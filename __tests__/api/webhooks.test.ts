@@ -5,12 +5,21 @@ import { tmpdir } from "node:os"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { GET as EVENT_TYPES_GET } from "@/app/api/webhooks/event-types/route"
 import { DELETE } from "@/app/api/webhooks/[id]/route"
+import { GET as DELIVERIES_GET } from "@/app/api/webhooks/[id]/deliveries/route"
 import { GET, POST } from "@/app/api/webhooks/route"
 import { publishSystemEvent } from "@/lib/events/system-events"
+import { deliverWebhookEvent } from "@/lib/webhooks/delivery"
 import {
   resetWebhookRetryDelayForTests,
   setWebhookRetryDelayForTests,
 } from "@/lib/webhooks/delivery"
+import {
+  appendWebhookDeliveryAttempt,
+  listWebhookDeliveryAttempts,
+  resetWebhookDeliveryLogForTests,
+  resetWebhookDeliveryLogPathForTests,
+  setWebhookDeliveryLogPathForTests,
+} from "@/lib/webhooks/delivery-log"
 import {
   resetWebhookStoreForTests,
   resetWebhookStorePathForTests,
@@ -43,7 +52,9 @@ describe("webhook API", () => {
   beforeEach(() => {
     testDir = mkdtempSync(join(tmpdir(), "open-stellar-webhooks-"))
     setWebhookStorePathForTests(join(testDir, "webhooks.json"))
+    setWebhookDeliveryLogPathForTests(join(testDir, "webhook-delivery-log.jsonl"))
     resetWebhookStoreForTests()
+    resetWebhookDeliveryLogForTests()
     setWebhookRetryDelayForTests(0)
   })
 
@@ -51,6 +62,7 @@ describe("webhook API", () => {
     vi.unstubAllGlobals()
     resetWebhookRetryDelayForTests()
     resetWebhookStorePathForTests()
+    resetWebhookDeliveryLogPathForTests()
     rmSync(testDir, { recursive: true, force: true })
   })
 
@@ -175,5 +187,157 @@ describe("webhook API", () => {
 
     expect(fetchMock.mock.calls[1][0]).toBe("https://partner.example/webhooks/open-stellar")
     expect(retryBody).toBe(fetchMock.mock.calls[0][1]?.body)
+  })
+
+  it("logs delivery attempts with status and duration", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal("fetch", fetchMock)
+    const { data: registered } = await registerWebhook()
+
+    await deliverWebhookEvent({
+      id: "evt_agent_status_1",
+      occurredAt: "2026-06-26T00:00:00.000Z",
+      type: "agent.status",
+      agentId: "nexus-7",
+      status: "working",
+    })
+
+    const attempts = listWebhookDeliveryAttempts(registered.id)
+
+    expect(attempts).toHaveLength(1)
+    expect(attempts[0]).toMatchObject({
+      webhookId: registered.id,
+      event: "agent.status",
+      responseStatus: 204,
+      ok: true,
+      retried: false,
+    })
+    expect(attempts[0].id).toMatch(/^wha_/)
+    expect(attempts[0].deliveredAt).toEqual(expect.any(String))
+    expect(attempts[0].durationMs).toEqual(expect.any(Number))
+  })
+
+  it("lists two deliveries newest-first without exposing secrets", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 202 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    vi.stubGlobal("fetch", fetchMock)
+    const { data: registered } = await registerWebhook()
+
+    await deliverWebhookEvent({
+      id: "evt_agent_status_1",
+      occurredAt: "2026-06-26T00:00:00.000Z",
+      type: "agent.status",
+      agentId: "nexus-7",
+      status: "idle",
+    })
+    await deliverWebhookEvent({
+      id: "evt_agent_status_2",
+      occurredAt: "2026-06-26T00:01:00.000Z",
+      type: "agent.status",
+      agentId: "nexus-7",
+      status: "working",
+    })
+
+    const res = await DELIVERIES_GET(
+      new Request(`http://localhost/api/webhooks/${registered.id}/deliveries?limit=20`),
+      context(registered.id),
+    )
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(data.deliveries).toHaveLength(2)
+    expect(data.deliveries[0]).toMatchObject({ event: "agent.status", responseStatus: 204, ok: true, retried: false })
+    expect(data.deliveries[1]).toMatchObject({ event: "agent.status", responseStatus: 202, ok: true, retried: false })
+    expect(Date.parse(data.deliveries[0].deliveredAt)).toBeGreaterThanOrEqual(Date.parse(data.deliveries[1].deliveredAt))
+    expect(data.deliveries[0]).not.toHaveProperty("secret")
+
+    const limited = await DELIVERIES_GET(
+      new Request(`http://localhost/api/webhooks/${registered.id}/deliveries?limit=1`),
+      context(registered.id),
+    )
+    const limitedData = await limited.json()
+
+    expect(limitedData.deliveries).toHaveLength(1)
+    expect(limitedData.deliveries[0].responseStatus).toBe(204)
+  })
+
+  it("logs initial and retry attempts with retried flags", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 500 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    vi.stubGlobal("fetch", fetchMock)
+    const { data: registered } = await registerWebhook()
+
+    await deliverWebhookEvent({
+      id: "evt_quest_completed_1",
+      occurredAt: "2026-06-26T00:00:00.000Z",
+      type: "quest.completed",
+      agentId: "nexus-7",
+      questId: "daily-complete-5-tasks",
+      reward: { xp: 50 },
+    })
+
+    const attempts = listWebhookDeliveryAttempts(registered.id)
+
+    expect(attempts).toHaveLength(2)
+    expect(attempts[0]).toMatchObject({ responseStatus: 204, ok: true, retried: true })
+    expect(attempts[1]).toMatchObject({ responseStatus: 500, ok: false, retried: false })
+  })
+
+  it("records null status when fetch fails before a response", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    vi.stubGlobal("fetch", fetchMock)
+    const { data: registered } = await registerWebhook()
+
+    await deliverWebhookEvent({
+      id: "evt_agent_status_1",
+      occurredAt: "2026-06-26T00:00:00.000Z",
+      type: "agent.status",
+      agentId: "nexus-7",
+      status: "working",
+    })
+
+    const attempts = listWebhookDeliveryAttempts(registered.id)
+
+    expect(attempts).toHaveLength(2)
+    expect(attempts[1]).toMatchObject({ responseStatus: null, ok: false, retried: false })
+  })
+
+  it("returns 404 when listing deliveries for an unknown webhook", async () => {
+    const res = await DELIVERIES_GET(
+      new Request("http://localhost/api/webhooks/wh_missing/deliveries"),
+      context("wh_missing"),
+    )
+    const data = await res.json()
+
+    expect(res.status).toBe(404)
+    expect(data.error).toBe("Webhook not found")
+  })
+
+  it("caps delivery log entries at 200 and evicts the oldest", () => {
+    for (let i = 0; i < 201; i += 1) {
+      appendWebhookDeliveryAttempt({
+        webhookId: "wh_cap",
+        event: `event.${i}`,
+        deliveredAt: `2026-06-26T00:${String(i).padStart(2, "0")}:00.000Z`,
+        durationMs: i,
+        responseStatus: 204,
+        ok: true,
+        retried: false,
+      })
+    }
+
+    const attempts = listWebhookDeliveryAttempts("wh_cap", 250)
+
+    expect(attempts).toHaveLength(200)
+    expect(attempts[0].event).toBe("event.200")
+    expect(attempts[199].event).toBe("event.1")
+    expect(attempts.some((attempt) => attempt.event === "event.0")).toBe(false)
   })
 })
