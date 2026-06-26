@@ -4,9 +4,9 @@ import { appendWebhookDeliveryAttempt } from "@/lib/webhooks/delivery-log"
 import { listWebhooksWithSecrets, type WebhookRegistration } from "@/lib/webhooks/store"
 
 const WEBHOOK_TIMEOUT_MS = 5_000
-const WEBHOOK_RETRY_DELAY_MS = 10_000
+const RETRY_DELAYS_MS = [5_000, 30_000, 120_000]
 
-let retryDelayMs = WEBHOOK_RETRY_DELAY_MS
+let retryDelaysMs = [...RETRY_DELAYS_MS]
 
 const globalState = globalThis as typeof globalThis & {
   __openStellarWebhookDeliveryRegistered__?: boolean
@@ -66,6 +66,7 @@ function recordDeliveryAttempt(
   event: string,
   result: WebhookPostResult,
   retried: boolean,
+  attempt: number,
 ): void {
   try {
     appendWebhookDeliveryAttempt({
@@ -76,6 +77,7 @@ function recordDeliveryAttempt(
       responseStatus: result.responseStatus,
       ok: result.ok,
       retried,
+      attempt,
     })
   } catch {
     // Delivery should not depend on local log persistence.
@@ -83,13 +85,17 @@ function recordDeliveryAttempt(
 }
 
 async function deliverToWebhook(webhook: WebhookRegistration, event: string, body: string): Promise<void> {
-  const firstAttempt = await postWebhook(webhook.url, body, webhook.secret)
-  recordDeliveryAttempt(webhook, event, firstAttempt, false)
-  if (firstAttempt.ok) return
+  const maxAttempts = retryDelaysMs.length + 1
 
-  await sleep(retryDelayMs)
-  const retryAttempt = await postWebhook(webhook.url, body, webhook.secret)
-  recordDeliveryAttempt(webhook, event, retryAttempt, true)
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (attempt > 1) {
+      await sleep(retryDelaysMs[attempt - 2])
+    }
+
+    const result = await postWebhook(webhook.url, body, webhook.secret)
+    recordDeliveryAttempt(webhook, event, result, attempt > 1, attempt)
+    if (result.ok) return
+  }
 }
 
 export async function deliverWebhookEvent(event: PublishedSystemEvent): Promise<void> {
@@ -116,9 +122,13 @@ export function registerWebhookDeliveryListener(): void {
 registerWebhookDeliveryListener()
 
 export function setWebhookRetryDelayForTests(ms: number): void {
-  retryDelayMs = ms
+  retryDelaysMs = RETRY_DELAYS_MS.map(() => ms)
+}
+
+export function setWebhookRetryDelaysForTests(delaysMs: number[]): void {
+  retryDelaysMs = [...delaysMs]
 }
 
 export function resetWebhookRetryDelayForTests(): void {
-  retryDelayMs = WEBHOOK_RETRY_DELAY_MS
+  retryDelaysMs = [...RETRY_DELAYS_MS]
 }
