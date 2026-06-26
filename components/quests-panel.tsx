@@ -34,10 +34,12 @@ function QuestCard({
   quest,
   currentReputation,
   onClaim,
+  onSubTaskToggle,
 }: {
   quest: Quest
   currentReputation: number | null
   onClaim: (quest: Quest) => void
+  onSubTaskToggle?: (questId: string, subTaskId: string, currentStatus: string) => void
 }) {
   const isComplete = quest.progress >= 100
   const color = questTypeColors[quest.type]
@@ -66,6 +68,83 @@ function QuestCard({
 
       <div style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 700, fontFamily: "monospace", marginBottom: 4 }}>{quest.title}</div>
       <div style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.4, marginBottom: 8 }}>{quest.description}</div>
+
+      {quest.subTasks && quest.subTasks.length > 0 && (
+        <div style={{ marginTop: 10, marginBottom: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ color: "#94a3b8", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.8, fontFamily: "monospace", fontWeight: 700 }}>
+            Sub-Tasks
+          </div>
+          {quest.subTasks.map((subTask) => (
+            <div
+              key={subTask.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                padding: "6px 8px",
+                background: "#020617",
+                borderRadius: 4,
+                border: "1px solid #1e293b",
+              }}
+            >
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: 1, margin: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={subTask.status === "done"}
+                  onChange={() => onSubTaskToggle?.(quest.id, subTask.id, subTask.status)}
+                  style={{
+                    cursor: "pointer",
+                    accentColor: color,
+                  }}
+                />
+                <span
+                  style={{
+                    color: subTask.status === "done" ? "#64748b" : "#e2e8f0",
+                    fontSize: 11,
+                    fontFamily: "monospace",
+                    textDecoration: subTask.status === "done" ? "line-through" : "none",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {subTask.title}
+                </span>
+              </label>
+              {subTask.assignedAgentId ? (
+                <span
+                  style={{
+                    background: `${color}1A`,
+                    border: `1px solid ${color}40`,
+                    color: color,
+                    fontSize: 9,
+                    fontFamily: "monospace",
+                    padding: "1px 6px",
+                    borderRadius: 4,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Agent #{subTask.assignedAgentId}
+                </span>
+              ) : (
+                <span
+                  style={{
+                    background: "#1e293b",
+                    border: "1px solid #334155",
+                    color: "#94a3b8",
+                    fontSize: 9,
+                    fontFamily: "monospace",
+                    padding: "1px 6px",
+                    borderRadius: 4,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Unassigned
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {hasReputationGate && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
@@ -138,26 +217,21 @@ export function QuestsPanel({ selectedAgentId }: { selectedAgentId?: string | nu
     return () => window.clearInterval(timer)
   }, [])
 
+  async function loadQuests(): Promise<void> {
+    try {
+      const response = await fetch("/api/quests", { cache: "no-store" })
+      if (!response.ok) throw new Error("Quest API unavailable")
+      const data = (await response.json()) as { quests: Quest[] }
+      setQuests(data.quests)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to load quests")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    let cancelled = false
-
-    async function loadQuests(): Promise<void> {
-      try {
-        const response = await fetch("/api/quests", { cache: "no-store" })
-        if (!response.ok) throw new Error("Quest API unavailable")
-        const data = (await response.json()) as { quests: Quest[] }
-        if (!cancelled) setQuests(data.quests)
-      } catch (caught) {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : "Unable to load quests")
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
     loadQuests()
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   useEffect(() => {
@@ -186,6 +260,26 @@ export function QuestsPanel({ selectedAgentId }: { selectedAgentId?: string | nu
       cancelled = true
     }
   }, [selectedAgentId])
+
+  const handleSubTaskToggle = async (questId: string, subTaskId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === "done" ? "pending" : "done"
+    try {
+      const response = await fetch(
+        `/api/quests/${encodeURIComponent(questId)}/subtasks/${encodeURIComponent(subTaskId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: nextStatus }),
+        }
+      )
+      if (!response.ok) {
+        throw new Error("Failed to update subtask")
+      }
+      await loadQuests()
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Failed to toggle subtask")
+    }
+  }
 
   const groupedQuests = useMemo(() => ({
     daily: quests.filter((quest) => quest.type === "daily"),
@@ -228,6 +322,7 @@ export function QuestsPanel({ selectedAgentId }: { selectedAgentId?: string | nu
                   quest={quest}
                   currentReputation={currentReputation}
                   onClaim={handleClaim}
+                  onSubTaskToggle={handleSubTaskToggle}
                 />
               ))}
             </div>

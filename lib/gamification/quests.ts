@@ -7,6 +7,14 @@ export interface QuestReward {
   title?: string
 }
 
+export interface SubTask {
+  id: string
+  title: string
+  assignedAgentId?: string
+  status: "pending" | "in_progress" | "done"
+  completedAt?: string
+}
+
 export interface Quest {
   id: string
   type: QuestType
@@ -17,6 +25,8 @@ export interface Quest {
   minReputation?: number
   completedAt?: string
   expiresAt?: string
+  subTasks?: SubTask[]
+  status?: "in_progress" | "completed"
 }
 
 interface QuestDefinition {
@@ -183,25 +193,127 @@ function toProgress(value: number, goal: number): number {
   return Math.max(0, Math.min(100, Math.round((value / goal) * 100)))
 }
 
+type SubTaskStore = Map<string, SubTask[]>
+
+const globalQuests = globalThis as typeof globalThis & {
+  __openStellarQuestSubTasks__?: SubTaskStore
+}
+
+function hydrateSubTasks(): SubTaskStore {
+  if (globalQuests.__openStellarQuestSubTasks__) return globalQuests.__openStellarQuestSubTasks__
+  const map: SubTaskStore = new Map()
+  globalQuests.__openStellarQuestSubTasks__ = map
+  return map
+}
+
+const subtaskDb = hydrateSubTasks()
+
+export function getSubTasks(questId: string): SubTask[] {
+  return subtaskDb.get(questId) ?? []
+}
+
+function generateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  return Math.random().toString(36).substring(2, 15)
+}
+
+export function addSubTask(questId: string, title: string, assignedAgentId?: string): SubTask {
+  const subtasks = getSubTasks(questId)
+  const newSubTask: SubTask = {
+    id: generateId(),
+    title,
+    assignedAgentId,
+    status: "pending",
+  }
+  subtasks.push(newSubTask)
+  subtaskDb.set(questId, subtasks)
+  return newSubTask
+}
+
+export function updateSubTask(
+  questId: string,
+  subTaskId: string,
+  updates: Partial<Omit<SubTask, "id">>
+): SubTask | null {
+  const subtasks = getSubTasks(questId)
+  const index = subtasks.findIndex((st) => st.id === subTaskId)
+  if (index === -1) return null
+
+  const existing = subtasks[index]
+  const updated: SubTask = {
+    ...existing,
+    ...updates,
+  }
+
+  if (updates.status === "done" && existing.status !== "done") {
+    updated.completedAt = new Date().toISOString()
+  } else if (updates.status && updates.status !== "done") {
+    delete updated.completedAt
+  }
+
+  subtasks[index] = updated
+  subtaskDb.set(questId, subtasks)
+  return updated
+}
+
 export function buildQuests(stats: QuestStats, now: Date = new Date()): Quest[] {
   const completedAt = now.toISOString()
   const dailyReset = getNextDailyReset(now).toISOString()
   const weeklyReset = getNextWeeklyReset(now).toISOString()
 
   return QUEST_DEFINITIONS.map((definition) => {
-    const progress = toProgress(getMetricValue(definition, stats), definition.goal)
+    const subTasks = getSubTasks(definition.id)
     const expiresAt = definition.type === "daily" ? dailyReset : definition.type === "weekly" ? weeklyReset : undefined
 
-    return {
-      id: definition.id,
-      type: definition.type,
-      title: definition.title,
-      description: definition.description,
-      reward: definition.reward,
-      progress,
-      ...(definition.minReputation !== undefined ? { minReputation: definition.minReputation } : {}),
-      ...(progress >= 100 ? { completedAt } : {}),
-      ...(expiresAt ? { expiresAt } : {}),
+    if (subTasks.length > 0) {
+      const doneCount = subTasks.filter((st) => st.status === "done").length
+      const calculatedProgress = Math.round((doneCount / subTasks.length) * 100)
+      const progress = (calculatedProgress === 100 && doneCount < subTasks.length) ? 99 : calculatedProgress
+
+      const isAllDone = doneCount === subTasks.length
+      const questStatus = isAllDone ? "completed" : "in_progress"
+
+      let questCompletedAt: string | undefined = undefined
+      if (isAllDone) {
+        const completedAts = subTasks.map((st) => st.completedAt).filter(Boolean) as string[]
+        if (completedAts.length > 0) {
+          questCompletedAt = completedAts.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]
+        } else {
+          questCompletedAt = completedAt
+        }
+      }
+
+      return {
+        id: definition.id,
+        type: definition.type,
+        title: definition.title,
+        description: definition.description,
+        reward: definition.reward,
+        progress,
+        subTasks,
+        status: questStatus,
+        ...(definition.minReputation !== undefined ? { minReputation: definition.minReputation } : {}),
+        ...(isAllDone ? { completedAt: questCompletedAt } : {}),
+        ...(expiresAt ? { expiresAt } : {}),
+      }
+    } else {
+      const progress = toProgress(getMetricValue(definition, stats), definition.goal)
+      const questStatus = progress >= 100 ? "completed" : "in_progress"
+
+      return {
+        id: definition.id,
+        type: definition.type,
+        title: definition.title,
+        description: definition.description,
+        reward: definition.reward,
+        progress,
+        status: questStatus,
+        ...(definition.minReputation !== undefined ? { minReputation: definition.minReputation } : {}),
+        ...(progress >= 100 ? { completedAt } : {}),
+        ...(expiresAt ? { expiresAt } : {}),
+      }
     }
   })
 }

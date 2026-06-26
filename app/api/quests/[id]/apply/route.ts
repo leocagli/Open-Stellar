@@ -28,6 +28,13 @@ export async function POST(req: Request, context: QuestApplyContext) {
     return NextResponse.json({ ok: false, error: "Quest not found" }, { status: 404 })
   }
 
+  if (quest.subTasks && quest.subTasks.length > 0 && quest.subTasks.some((st) => st.status !== "done")) {
+    return NextResponse.json(
+      { ok: false, error: "Cannot complete quest with pending sub-tasks" },
+      { status: 400 }
+    )
+  }
+
   const body = await readApplyBody(req)
   const actorId = typeof body.actorId === "string" && body.actorId.trim().length > 0
     ? body.actorId.trim()
