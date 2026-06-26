@@ -50,6 +50,7 @@ export interface MoltbotAgent {
   id: string
   name: string
   model: string
+  deployment?: "local" | "cloud"
   xp?: number
   level?: number
   xpToNext?: number
