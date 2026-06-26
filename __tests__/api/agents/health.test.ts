@@ -10,6 +10,7 @@ import {
   resetAgentHealthStore,
   runAgentHealthCheck,
 } from "@/lib/agents/agent-health-store"
+import { listUnseenNotifications, resetNotificationStore } from "@/lib/notifications/notification-store"
 
 function context(id: string) {
   return { params: Promise.resolve({ id }) }
@@ -17,6 +18,7 @@ function context(id: string) {
 
 afterEach(() => {
   resetAgentHealthStore()
+  resetNotificationStore()
 })
 
 describe("agent heartbeat and health routes", () => {
@@ -111,6 +113,24 @@ describe("agent health check", () => {
     expect(health?.runtimeStatus).toBe("offline")
     expect(health?.restartAttempts).toBe(1)
     expect(health?.missedHeartbeats).toBeGreaterThanOrEqual(2)
+  })
+
+  it("generates an offline notification when an agent misses the heartbeat threshold", () => {
+    const base = Date.parse("2026-06-24T08:00:00.000Z")
+    recordAgentHeartbeat("bot-notify-offline", {
+      status: "active",
+      nowMs: base,
+    })
+
+    runAgentHealthCheck(base + OFFLINE_AFTER_MS + 1)
+
+    expect(listUnseenNotifications("bot-notify-offline")).toMatchObject([
+      {
+        agentId: "bot-notify-offline",
+        type: "agent_offline",
+        resourceHref: "/agents/bot-notify-offline",
+      },
+    ])
   })
 
   it("raises an error-severity alert after five minutes offline", () => {

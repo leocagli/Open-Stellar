@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, type ReactNode } from "react"
-import { Copy, Download, Share2 } from "lucide-react"
+import { Bell, CheckCheck, Copy, Download, Share2 } from "lucide-react"
 import { toast } from "sonner"
 import type { AgentAppearance, MoltbotAgent, LogEntry, ChatMessage, WalletTransaction } from "@/lib/types"
 import { DISTRICTS } from "@/lib/data"
@@ -14,6 +14,18 @@ import { QuestsPanel } from "./quests-panel"
 import { MOCK_OFFERS, TaskBoard, getTaskOfferCounts } from "./task-board"
 
 export type SidebarTabId = "overview" | "chat" | "offers" | "skills" | "quests" | "wallet" | "appearance"
+
+interface NotificationItem {
+  id: string
+  cursor: string
+  agentId: string
+  type: "agent_offline" | "quest_completed" | "reputation_updated"
+  title: string
+  body: string
+  resourceHref: string
+  resourceLabel: string
+  createdAt: string
+}
 
 export const SIDEBAR_TABS: { id: SidebarTabId; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -204,6 +216,200 @@ function AgentShareControls({ agent }: { agent: MoltbotAgent }) {
           onClick={handleDownload}
         />
       </div>
+    </div>
+  )
+}
+
+function formatNotificationType(type: NotificationItem["type"]): string {
+  if (type === "agent_offline") return "Offline"
+  if (type === "quest_completed") return "Quest"
+  return "Rep"
+}
+
+function NotificationBell({ agentId }: { agentId: string | null }) {
+  const [open, setOpen] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  const loadNotifications = useCallback(async () => {
+    if (!agentId) {
+      setNotifications([])
+      setUnreadCount(0)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/notifications?agentId=${encodeURIComponent(agentId)}&limit=10`, { cache: "no-store" })
+      if (!response.ok) throw new Error("Notification API unavailable")
+      const data = await response.json()
+      setNotifications(Array.isArray(data.notifications) ? data.notifications : [])
+      setUnreadCount(typeof data.unreadCount === "number" ? data.unreadCount : 0)
+    } catch {
+      setNotifications([])
+      setUnreadCount(0)
+    }
+  }, [agentId])
+
+  useEffect(() => {
+    loadNotifications()
+    const timer = window.setInterval(loadNotifications, 15_000)
+    return () => window.clearInterval(timer)
+  }, [loadNotifications])
+
+  const markAllRead = async () => {
+    if (!agentId) return
+
+    const response = await fetch("/api/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agentId }),
+    })
+    if (!response.ok) {
+      toast.error("Could not mark notifications read")
+      return
+    }
+
+    setUnreadCount(0)
+    setNotifications([])
+  }
+
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((value) => !value)
+          loadNotifications()
+        }}
+        disabled={!agentId}
+        title={agentId ? "Notifications" : "Select an agent for notifications"}
+        aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
+        style={{
+          position: "relative",
+          width: 34,
+          height: 38,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "transparent",
+          border: "none",
+          borderBottom: "2px solid transparent",
+          color: agentId ? "#94a3b8" : "#475569",
+          cursor: agentId ? "pointer" : "not-allowed",
+        }}
+      >
+        <Bell size={15} aria-hidden="true" />
+        {unreadCount > 0 && (
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: 5,
+              right: 3,
+              minWidth: 15,
+              height: 15,
+              borderRadius: 8,
+              background: "#f87171",
+              color: "#fff",
+              fontSize: 8,
+              fontFamily: "monospace",
+              fontWeight: 800,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 3px",
+            }}
+          >
+            {unreadCount > 99 ? "99" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && agentId && (
+        <div
+          role="dialog"
+          aria-label="Notifications"
+          style={{
+            position: "absolute",
+            right: 0,
+            top: 40,
+            width: 286,
+            maxHeight: 360,
+            overflow: "hidden",
+            zIndex: 40,
+            background: "#0f172a",
+            border: "1px solid #2a3a52",
+            borderRadius: 6,
+            boxShadow: "0 16px 40px rgba(2, 6, 23, 0.45)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: 10, borderBottom: "1px solid #263449" }}>
+            <div style={{ color: "#e2e8f0", fontSize: 11, fontFamily: "monospace", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.7 }}>
+              Notifications
+            </div>
+            <button
+              type="button"
+              onClick={markAllRead}
+              disabled={unreadCount === 0}
+              title="Mark all notifications read"
+              aria-label="Mark all notifications read"
+              style={{
+                width: 26,
+                height: 24,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: unreadCount > 0 ? "#22d3ee22" : "#111827",
+                border: `1px solid ${unreadCount > 0 ? "#22d3ee55" : "#334155"}`,
+                borderRadius: 5,
+                color: unreadCount > 0 ? "#67e8f9" : "#475569",
+                cursor: unreadCount > 0 ? "pointer" : "not-allowed",
+              }}
+            >
+              <CheckCheck size={14} aria-hidden="true" />
+            </button>
+          </div>
+
+          <div style={{ maxHeight: 306, overflow: "auto", padding: notifications.length > 0 ? 6 : 10 }}>
+            {notifications.length === 0 ? (
+              <div style={{ color: "#64748b", fontSize: 11, fontFamily: "monospace" }}>No unread alerts</div>
+            ) : (
+              notifications.map((notification) => (
+                <a
+                  key={notification.id}
+                  href={notification.resourceHref}
+                  style={{
+                    display: "block",
+                    padding: "8px 7px",
+                    borderRadius: 5,
+                    color: "#cbd5e1",
+                    textDecoration: "none",
+                    border: "1px solid transparent",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 3 }}>
+                    <span style={{ color: "#22d3ee", fontSize: 9, fontFamily: "monospace", fontWeight: 800, textTransform: "uppercase" }}>
+                      {formatNotificationType(notification.type)}
+                    </span>
+                    <span style={{ color: "#475569", fontSize: 9, fontFamily: "monospace" }}>
+                      {new Date(notification.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <div style={{ color: "#e2e8f0", fontSize: 12, fontFamily: "monospace", fontWeight: 700, marginBottom: 2 }}>
+                    {notification.title}
+                  </div>
+                  <div style={{ color: "#94a3b8", fontSize: 10, lineHeight: 1.35 }}>
+                    {notification.body}
+                  </div>
+                  <div style={{ color: "#64748b", fontSize: 9, fontFamily: "monospace", marginTop: 4 }}>
+                    {notification.resourceLabel}
+                  </div>
+                </a>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -668,6 +874,7 @@ export function SidebarPanel({
               )}
             </button>
           ))}
+          <NotificationBell agentId={selectedAgent?.id ?? null} />
           <a
             href="/admin"
             style={{

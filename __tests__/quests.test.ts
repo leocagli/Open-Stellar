@@ -1,6 +1,14 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 
-import { buildQuests, getNextDailyReset, getNextWeeklyReset, type QuestStats } from "@/lib/gamification/quests"
+import { GET as getQuestsRoute } from "@/app/api/quests/route"
+import {
+  buildQuests,
+  getNextDailyReset,
+  getNextWeeklyReset,
+  recordCompletedQuestNotifications,
+  type QuestStats,
+} from "@/lib/gamification/quests"
+import { listUnseenNotifications, resetNotificationStore } from "@/lib/notifications/notification-store"
 
 const completeStats: QuestStats = {
   tasksCompletedToday: 5,
@@ -15,6 +23,10 @@ const completeStats: QuestStats = {
   crossDistrictDelegations: 1,
   subscriptionsAcquired: 1,
 }
+
+afterEach(() => {
+  resetNotificationStore()
+})
 
 describe("quests", () => {
   it("sets daily reset to the next UTC midnight", () => {
@@ -49,5 +61,30 @@ describe("quests", () => {
 
     expect(quests.find((quest) => quest.id === "daily-complete-5-tasks")?.progress).toBe(40)
     expect(quests.find((quest) => quest.id === "story-first-subscription")?.progress).toBe(0)
+  })
+
+  it("generates quest completed notifications for completed quests", () => {
+    const quests = buildQuests(completeStats, new Date("2026-06-26T13:45:00.000Z"))
+
+    recordCompletedQuestNotifications("quest-agent", quests)
+
+    expect(listUnseenNotifications("quest-agent", { limit: 20 })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          agentId: "quest-agent",
+          type: "quest_completed",
+          resourceHref: "/?quest=daily-complete-5-tasks",
+        }),
+      ]),
+    )
+  })
+
+  it("does not generate quest notifications from the read-only quests API", async () => {
+    const res = await getQuestsRoute(new Request("http://localhost/api/quests?agentId=quest-route-agent"))
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(data.quests.length).toBeGreaterThan(0)
+    expect(listUnseenNotifications("quest-route-agent")).toEqual([])
   })
 })
