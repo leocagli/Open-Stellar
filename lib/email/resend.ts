@@ -37,7 +37,6 @@ if (!globalState.__openStellarEmailState__) {
   globalState.__openStellarEmailState__ = emailState
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 function fromAddress(): string {
   return process.env.EMAIL_FROM || "Open Stellar <noreply@open-stellar.xyz>"
@@ -92,6 +91,8 @@ async function sendReactEmail(subject: string, to: string, react: React.ReactNod
   if (!process.env.RESEND_API_KEY) {
     return { skipped: true, reason: "RESEND_API_KEY is not configured" }
   }
+
+  const resend = new Resend(process.env.RESEND_API_KEY)
 
   const { data, error } = await resend.emails.send({
     from: fromAddress(),
