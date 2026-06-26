@@ -1,3 +1,5 @@
+import { addNotification } from "@/lib/notifications/notification-store"
+
 export type QuestType = "daily" | "weekly" | "story"
 
 export interface QuestReward {
@@ -230,4 +232,23 @@ export function getQuests(now: Date = new Date()): Quest[] {
 
 export function getQuestById(id: string, now: Date = new Date()): Quest | null {
   return getQuests(now).find((quest) => quest.id === id) ?? null
+}
+
+export function recordCompletedQuestNotifications(agentId: string, quests: Quest[]): void {
+  const cleanId = agentId.trim()
+  if (!cleanId) return
+
+  for (const quest of quests) {
+    if (!quest.completedAt) continue
+    addNotification({
+      agentId: cleanId,
+      type: "quest_completed",
+      title: "Quest completed",
+      body: `${quest.title} is ready to claim.`,
+      resourceHref: `/?quest=${encodeURIComponent(quest.id)}`,
+      resourceLabel: quest.title,
+      createdAt: quest.completedAt,
+      dedupeKey: `quest_completed:${cleanId}:${quest.id}:${quest.completedAt}`,
+    })
+  }
 }

@@ -1,5 +1,6 @@
 import type { AgentStatus } from "@/lib/types"
 import { publishSystemEvent } from "@/lib/events/system-events"
+import { addNotification } from "@/lib/notifications/notification-store"
 
 export const HEARTBEAT_INTERVAL_MS = 15_000
 export const OFFLINE_AFTER_MS = 30_000
@@ -222,6 +223,16 @@ export function runAgentHealthCheck(nowMs = Date.now()): HealthCheckResult {
         }
         pushEvent(event)
         checkEvents.push(event)
+        addNotification({
+          agentId: record.agentId,
+          type: "agent_offline",
+          title: "Agent offline",
+          body: `${record.agentId} missed the heartbeat threshold.`,
+          resourceHref: `/agents/${record.agentId}`,
+          resourceLabel: "Agent status",
+          createdAt: event.at,
+          dedupeKey: `agent_offline:${record.agentId}:${event.at}`,
+        })
       }
 
       if (record.autoRestart && record.lastRestartAttemptMs === null) {

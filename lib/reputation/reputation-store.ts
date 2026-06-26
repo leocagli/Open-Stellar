@@ -1,4 +1,5 @@
 import type { ReputationAction } from '@/lib/protocols/track8004'
+import { addNotification } from '@/lib/notifications/notification-store'
 
 export type ReputationTier = 'unrated' | 'bronze' | 'silver' | 'gold' | 'platinum'
 export type ReputationBadgeRarity = 'common' | 'rare' | 'epic' | 'legendary'
@@ -141,7 +142,18 @@ export function applyReputationAction(action: ReputationAction): ReputationSnaps
     metrics.badges = [...metrics.badges, { id: `${action.reason}-${Date.now()}`, rarity: 'common', awardedAt: new Date().toISOString() }]
   }
 
-  return upsertReputationMetrics(action.actorId, metrics)
+  const updated = upsertReputationMetrics(action.actorId, metrics)
+  addNotification({
+    agentId: action.actorId,
+    type: 'reputation_updated',
+    title: 'Reputation updated',
+    body: `Reputation changed from ${current.score} to ${updated.score}.`,
+    resourceHref: `/leaderboard/${action.actorId}`,
+    resourceLabel: 'Reputation',
+    createdAt: updated.updatedAt,
+    dedupeKey: `reputation_updated:${action.actorId}:${updated.updatedAt}:${action.reason}:${action.delta}`,
+  })
+  return updated
 }
 
 export function listReputations(limit = 50): ReputationSnapshot[] {
