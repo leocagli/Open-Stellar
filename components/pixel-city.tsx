@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useEffect, useCallback, useState } from "react"
+import { useRef, useEffect, useCallback, useState, useMemo } from "react"
 import type { MoltbotAgent, District } from "@/lib/types"
 import { drawGrid, drawRoads, drawDistrict, drawBot } from "@/lib/renderer"
 import { ParticleSystem, type ParticleEvent, type ParticleOpts } from "@/lib/renderer/particles"
@@ -57,6 +57,79 @@ export interface ParticleTrigger {
   opts?: ParticleOpts
 }
 
+interface CityBounds {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+}
+
+function drawMinimap(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  districts: District[],
+  agents: MoltbotAgent[],
+  zoom: number,
+  panOffset: { x: number; y: number },
+  cityBounds: CityBounds,
+  scale: number,
+  colorBlindMode = false
+) {
+  const mapW = 160
+  const mapH = 100
+  const mapX = w - mapW - 20
+  const mapY = 60
+
+  ctx.save()
+  // Background
+  ctx.fillStyle = "rgba(15, 23, 42, 0.85)"
+  ctx.strokeStyle = "rgba(34, 211, 238, 0.5)"
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  if ((ctx as any).roundRect) {
+    (ctx as any).roundRect(mapX, mapY, mapW, mapH, 8)
+  } else {
+    ctx.rect(mapX, mapY, mapW, mapH)
+  }
+  ctx.fill()
+  ctx.stroke()
+
+  const { minX, minY } = cityBounds
+
+  ctx.translate(mapX + 10, mapY + 10)
+  ctx.scale(scale, scale)
+  ctx.translate(-minX + 100, -minY + 100)
+
+  // Draw districts
+  districts.forEach(d => {
+    ctx.fillStyle = d.bgColor + (colorBlindMode ? "dd" : "aa")
+    ctx.fillRect(d.x, d.y, d.w, d.h)
+    ctx.strokeStyle = d.color
+    ctx.lineWidth = 1 / scale
+    ctx.strokeRect(d.x, d.y, d.w, d.h)
+  })
+
+  // Draw agents
+  agents.forEach(a => {
+    ctx.fillStyle = a.color
+    ctx.beginPath()
+    ctx.arc(a.pixelX + 8, a.pixelY + 10, 12 / (scale * 20), 0, Math.PI * 2)
+    ctx.fill()
+  })
+
+  // Draw viewport rect
+  const viewX = -panOffset.x / zoom
+  const viewY = -panOffset.y / zoom
+  const viewW = w / zoom
+  const viewH = h / zoom
+  ctx.strokeStyle = "#fff"
+  ctx.lineWidth = 1 / scale
+  ctx.strokeRect(viewX, viewY, viewW, viewH)
+
+  ctx.restore()
+}
+
 interface PixelCityProps {
   agents: MoltbotAgent[]
   districts: District[]
@@ -72,11 +145,11 @@ interface PixelCityProps {
 }
 
 const statusSymbols: Record<string, string> = {
-  active: "+",
-  working: "*",
-  idle: "o",
-  error: "x",
-  offline: "-",
+  active: "●",
+  working: "◆",
+  idle: "○",
+  error: "✕",
+  offline: "—",
 }
 
 export function PixelCity({
@@ -103,6 +176,36 @@ export function PixelCity({
   const [hoveredAgent, setHoveredAgent] = useState<MoltbotAgent | null>(null)
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
   const [focusedAgentId, setFocusedAgentId] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(1)
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
+  const [showMinimap, setShowMinimap] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const cityBounds = useMemo(() => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    districts.forEach(d => {
+      minX = Math.min(minX, d.x)
+      minY = Math.min(minY, d.y)
+      maxX = Math.max(maxX, d.x + d.w)
+      maxY = Math.max(maxY, d.y + d.h)
+    })
+    // Fallback if no districts
+    if (minX === Infinity) { minX = 0; minY = 0; maxX = 1000; maxY = 1000 }
+    return { minX, minY, maxX, maxY }
+  }, [districts])
+
+  const minimapScale = useMemo(() => {
+    const mapW = 160
+    const mapH = 100
+    const { minX, minY, maxX, maxY } = cityBounds
+    const cityW = maxX - minX + 200
+    const cityH = maxY - minY + 200
+    return Math.min((mapW - 20) / cityW, (mapH - 20) / cityH)
+  }, [cityBounds])
 
   // Preload all background images and robot sprites
   useEffect(() => {
@@ -225,11 +328,15 @@ export function PixelCity({
 
     ctx.clearRect(0, 0, w, h)
 
-    drawGrid(ctx, w, h)
+    ctx.save()
+    ctx.translate(panOffset.x, panOffset.y)
+    ctx.scale(zoom, zoom)
+
+    drawGrid(ctx, w / zoom, h / zoom)
     drawRoads(ctx, districts)
 
     for (const d of districts) {
-      drawDistrict(ctx, d, tick, images[d.id])
+      drawDistrict(ctx, d, tick, images[d.id], colorBlindMode)
     }
 
     const sorted = [...agents].sort((a, b) => a.pixelY - b.pixelY)
@@ -237,7 +344,7 @@ export function PixelCity({
       const spriteIdx = agent.spriteId % sprites.length
       const agentSprite = sprites[spriteIdx] || sprites[0]
       const crop = spriteCrops.current[agent.spriteId % SPRITE_CONFIGS.length]
-      drawBot(ctx, agent, tick, agent.id === selectedAgentId, agentSprite, crop)
+      drawBot(ctx, agent, tick, agent.id === selectedAgentId, agentSprite, crop, colorBlindMode)
     }
 
     if (!reduceMotion) {
@@ -275,6 +382,8 @@ export function PixelCity({
       }
     }
 
+    ctx.restore()
+
     ctx.font = "bold 14px monospace"
     ctx.fillStyle = "#22d3ee"
     ctx.textAlign = "left"
@@ -282,6 +391,10 @@ export function PixelCity({
     ctx.font = "10px monospace"
     ctx.fillStyle = "#64748b"
     ctx.fillText(`TICK ${tick}  |  ${agents.length} AGENTS DEPLOYED`, 40, 44)
+
+    if (showMinimap) {
+      drawMinimap(ctx, w, h, districts, agents, zoom, panOffset, cityBounds, minimapScale, colorBlindMode)
+    }
 
     if (audioEngine) {
       const weights = new Map<string, number>()
@@ -301,18 +414,20 @@ export function PixelCity({
         audioEngine.setDistrictFocus(d.id, volume)
       }
     }
-  }, [agents, districts, selectedAgentId, tick, images, sprites, txAnimations, reduceMotion, audioEngine])
+  }, [agents, districts, selectedAgentId, tick, images, sprites, txAnimations, reduceMotion, audioEngine, zoom, panOffset, showMinimap, colorBlindMode])
 
   const hitTestAgent = useCallback(
     (mx: number, my: number): MoltbotAgent | null => {
+      const worldX = (mx - panOffset.x) / zoom
+      const worldY = (my - panOffset.y) / zoom
       for (const agent of agents) {
-        const dx = mx - (agent.pixelX + 8)
-        const dy = my - (agent.pixelY + 10)
+        const dx = worldX - (agent.pixelX + 8)
+        const dy = worldY - (agent.pixelY + 10)
         if (Math.sqrt(dx * dx + dy * dy) < 16) return agent
       }
       return null
     },
-    [agents]
+    [agents, zoom, panOffset]
   )
 
   const handleClick = useCallback(
@@ -360,9 +475,27 @@ export function PixelCity({
     (e: React.KeyboardEvent<HTMLCanvasElement>) => {
       if (e.key === "Escape") {
         onSelectAgent(null)
+        setFocusedAgentId(null)
+      } else if (e.key === "m" || e.key === "M") {
+        setShowMinimap(prev => !prev)
+      } else if (e.key === "+" || e.key === "=") {
+        setZoom(prev => Math.min(prev * 1.2, 4))
+      } else if (e.key === "-" || e.key === "_") {
+        setZoom(prev => Math.max(prev / 1.2, 0.4))
+      } else if (!focusedAgentId) {
+        const panAmount = 40 / zoom
+        if (e.key === "ArrowLeft") {
+          setPanOffset(prev => ({ ...prev, x: prev.x + panAmount }))
+        } else if (e.key === "ArrowRight") {
+          setPanOffset(prev => ({ ...prev, x: prev.x - panAmount }))
+        } else if (e.key === "ArrowUp") {
+          setPanOffset(prev => ({ ...prev, y: prev.y + panAmount }))
+        } else if (e.key === "ArrowDown") {
+          setPanOffset(prev => ({ ...prev, y: prev.y - panAmount }))
+        }
       }
     },
-    [onSelectAgent]
+    [onSelectAgent, focusedAgentId, zoom]
   )
 
   const statusColors: Record<string, string> = {
@@ -417,6 +550,7 @@ export function PixelCity({
           pointerEvents: "none",
         }}
       />
+      {mounted && (
       <div aria-label="Agents on city canvas" role="listbox">
         {agents.map((agent) => {
           const isSelected = agent.id === selectedAgentId
@@ -432,24 +566,30 @@ export function PixelCity({
               onFocus={() => setFocusedAgentId(agent.id)}
               onBlur={() => setFocusedAgentId((current) => (current === agent.id ? null : current))}
               onClick={() => onSelectAgent(agent.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  onSelectAgent(agent.id)
+                }
+              }}
               style={{
                 position: "absolute",
-                left: agent.pixelX - 4,
-                top: agent.pixelY - 4,
+                left: (agent.pixelX - 4) * zoom + panOffset.x,
+                top: (agent.pixelY - 4) * zoom + panOffset.y,
                 zIndex: 4,
-                width: 32,
-                height: 32,
-                border: isFocused || isSelected ? "2px solid #fbbf24" : "1px solid transparent",
-                borderRadius: 8,
+                width: 32 * zoom,
+                height: 32 * zoom,
+                border: isFocused || isSelected ? `${Math.max(1, 2 * zoom)}px solid #fbbf24` : "1px solid transparent",
+                borderRadius: 8 * zoom,
                 background: colorBlindMode ? "rgba(15,23,42,0.55)" : "transparent",
                 color: "#f8fafc",
                 cursor: "pointer",
                 fontFamily: "monospace",
-                fontSize: 14,
-                lineHeight: "28px",
+                fontSize: 14 * zoom,
+                lineHeight: `${28 * zoom}px`,
                 padding: 0,
-                outline: isFocused ? "2px solid #22d3ee" : "none",
-                outlineOffset: 2,
+                outline: isFocused ? `${Math.max(1, 2 * zoom)}px solid #22d3ee` : "none",
+                outlineOffset: 2 * zoom,
               }}
             >
               <span aria-hidden="true">{colorBlindMode ? statusSymbols[agent.status] ?? "•" : ""}</span>
@@ -457,6 +597,7 @@ export function PixelCity({
           )
         })}
       </div>
+      )}
       {floatingOverlays.map((overlay) => {
         const elapsed = Date.now() - overlay.startedAt
         const progress = Math.min(1, elapsed / overlay.duration)
@@ -468,8 +609,8 @@ export function PixelCity({
             key={overlay.id}
             style={{
               position: "absolute",
-              left: overlay.x,
-              top: overlay.y - lift,
+              left: overlay.x * zoom + panOffset.x,
+              top: (overlay.y - lift) * zoom + panOffset.y,
               transform: "translate(-50%, -100%)",
               zIndex: 9,
               pointerEvents: "none",
