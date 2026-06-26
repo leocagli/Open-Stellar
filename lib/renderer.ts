@@ -59,7 +59,7 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number
   }
 }
 
-export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: number, bgImage?: HTMLImageElement) {
+export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: number, bgImage?: HTMLImageElement, colorBlindMode = false) {
   // Save state for clipping
   ctx.save()
 
@@ -82,11 +82,63 @@ export function drawDistrict(ctx: CanvasRenderingContext2D, d: District, tick: n
   if (bgImage) {
     ctx.drawImage(bgImage, d.x, d.y, d.w, d.h)
     // Semi-transparent overlay to darken and tint with district color
-    ctx.fillStyle = d.bgColor + "cc"
+    ctx.fillStyle = d.bgColor + (colorBlindMode ? "ee" : "cc")
     ctx.fillRect(d.x, d.y, d.w, d.h)
   } else {
     ctx.fillStyle = d.bgColor
     ctx.fillRect(d.x, d.y, d.w, d.h)
+  }
+
+  // Pattern fills for color-blind mode
+  if (colorBlindMode) {
+    ctx.save()
+    ctx.strokeStyle = d.color + "44"
+    ctx.lineWidth = 1
+    const idx = DISTRICTS.findIndex(dist => dist.id === d.id)
+
+    if (idx === 0) { // Data Center - Diagonal Hatching
+      for (let i = -d.h; i < d.w; i += 8) {
+        ctx.beginPath()
+        ctx.moveTo(d.x + i, d.y)
+        ctx.lineTo(d.x + i + d.h, d.y + d.h)
+        ctx.stroke()
+      }
+    } else if (idx === 1) { // Comm Hub - Dots
+      ctx.fillStyle = d.color + "44"
+      for (let px = 4; px < d.w; px += 10) {
+        for (let py = 4; py < d.h; py += 10) {
+          ctx.beginPath()
+          ctx.arc(d.x + px, d.y + py, 1, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+    } else if (idx === 2) { // Processing - Crosshatch
+      for (let i = 0; i < d.w + d.h; i += 10) {
+        ctx.beginPath()
+        ctx.moveTo(d.x + i, d.y)
+        ctx.lineTo(d.x, d.y + i)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(d.x + d.w - i, d.y)
+        ctx.lineTo(d.x + d.w, d.y + i)
+        ctx.stroke()
+      }
+    } else if (idx === 3) { // Defense - Vertical Stripes
+      for (let i = 0; i < d.w; i += 6) {
+        ctx.beginPath()
+        ctx.moveTo(d.x + i, d.y)
+        ctx.lineTo(d.x + i, d.y + d.h)
+        ctx.stroke()
+      }
+    } else { // Research Lab - Horizontal Stripes
+      for (let i = 0; i < d.h; i += 6) {
+        ctx.beginPath()
+        ctx.moveTo(d.x, d.y + i)
+        ctx.lineTo(d.x + d.w, d.y + i)
+        ctx.stroke()
+      }
+    }
+    ctx.restore()
   }
 
   // Pixel scanline effect over the background
@@ -384,7 +436,7 @@ function drawAuraParticles(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, t
   ctx.restore()
 }
 
-export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick: number, isSelected: boolean, sprite?: HTMLImageElement, cropRegion?: [number, number, number, number]) {
+export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick: number, isSelected: boolean, sprite?: HTMLImageElement, cropRegion?: [number, number, number, number], colorBlindMode = false) {
   const x = Math.round(agent.pixelX)
   const y = Math.round(agent.pixelY)
   const c = agent.color
@@ -501,11 +553,44 @@ export function drawBot(ctx: CanvasRenderingContext2D, agent: MoltbotAgent, tick
     error: "#f87171",
     offline: "#1e293b",
   }
-  drawRect(ctx, drawX + spriteSize - 6, drawY + 2, 5, 5, statusColors[agent.status] || "#64748b")
+
+  const sx = drawX + spriteSize - 6
+  const sy = drawY + 2
+  const sw = 6
+  const sh = 6
+
+  ctx.fillStyle = statusColors[agent.status] || "#64748b"
+
+  if (colorBlindMode) {
+    ctx.beginPath()
+    if (agent.status === "active") { // Circle
+      ctx.arc(sx + sw/2, sy + sh/2, sw/2, 0, Math.PI * 2)
+    } else if (agent.status === "working") { // Diamond
+      ctx.moveTo(sx + sw/2, sy)
+      ctx.lineTo(sx + sw, sy + sh/2)
+      ctx.lineTo(sx + sw/2, sy + sh)
+      ctx.lineTo(sx, sy + sh/2)
+    } else if (agent.status === "error" || agent.status === "offline") { // X
+      ctx.fillRect(sx, sy, sw, sh)
+      ctx.strokeStyle = "#fff"
+      ctx.lineWidth = 1
+      ctx.moveTo(sx, sy)
+      ctx.lineTo(sx + sw, sy + sh)
+      ctx.moveTo(sx + sw, sy)
+      ctx.lineTo(sx, sy + sh)
+      ctx.stroke()
+    } else { // Square
+      ctx.rect(sx, sy, sw, sh)
+    }
+    ctx.fill()
+  } else {
+    ctx.fillRect(sx, sy, sw, sh)
+  }
+
   // Status dot border
   ctx.strokeStyle = "#0a0e17"
   ctx.lineWidth = 0.5
-  ctx.strokeRect(drawX + spriteSize - 6, drawY + 2, 5, 5)
+  ctx.strokeRect(sx, sy, sw, sh)
 
   // Name label
   ctx.font = "bold 8px monospace"

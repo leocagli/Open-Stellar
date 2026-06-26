@@ -197,7 +197,7 @@ export function feedDistrictName(districtId?: DistrictId) {
 }
 
 export function feedEventFromSystemEvent(event: PublishedSystemEvent): FeedEvent {
-  const agent = findAgentByLookup(event.agentId)
+  const agent = event.agentId ? findAgentByLookup(event.agentId) : undefined
   const district = agent ? getAgentDistrict(agent) : undefined
   const base = {
     id: event.id,
@@ -259,7 +259,7 @@ export function feedEventFromSystemEvent(event: PublishedSystemEvent): FeedEvent
     ...base,
     kind: "task",
     title: `${base.agentName} activity update`,
-    detail: event.type === "task.started" ? event.task.title : `Status changed to ${event.status}`,
+    detail: event.type === "task.started" ? event.task.title : (event.type === "agent.status" ? `Status changed to ${event.status}` : event.type),
     highlight: event.type,
     shareText: `${base.agentName} activity update on Open Stellar`,
   }

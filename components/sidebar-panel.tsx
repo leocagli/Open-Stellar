@@ -402,14 +402,16 @@ function OverviewTab({
             {logExpanded ? "▼" : "▲"}
           </button>
         </div>
-        {logs.slice(-40).reverse().map(log => (
-          <div key={log.id} style={{ fontSize: 10, marginBottom: 3, display: "flex", gap: 6, lineHeight: 1.4 }}>
-            <span style={{ color: "#475569", flexShrink: 0, fontFamily: "monospace" }}>{log.time}</span>
-            <span style={{ color: logTypeColors[log.type] || "#94a3b8" }}>
-              <strong>{log.agent}</strong> {log.message}
-            </span>
-          </div>
-        ))}
+        <div role="status" aria-live="polite" aria-label="Activity log content">
+          {logs.slice(-40).reverse().map(log => (
+            <div key={log.id} style={{ fontSize: 10, marginBottom: 3, display: "flex", gap: 6, lineHeight: 1.4 }}>
+              <span style={{ color: "#475569", flexShrink: 0, fontFamily: "monospace" }}>{log.time}</span>
+              <span style={{ color: logTypeColors[log.type] || "#94a3b8" }}>
+                <strong>{log.agent}</strong> {log.message}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
