@@ -1,10 +1,13 @@
 {
-  "name": "my-project",
+  "name": "open-stellar",
   "version": "0.1.0",
   "private": true,
   "workspaces": [
     "packages/*"
   ],
+  "bin": {
+    "open-stellar": "./scripts/cli/bootstrap.mjs"
+  },
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
@@ -18,7 +21,8 @@
     "test:coverage": "vitest run --coverage",
     "deploy:evm:guide": "node scripts/deploy/evm/guide.mjs",
     "deploy:soroban:guide": "node scripts/deploy/soroban/guide.mjs",
-    "generate:audio": "node scripts/generate-audio-assets.mjs"
+    "generate:audio": "node scripts/generate-audio-assets.mjs",
+    "bootstrap": "node scripts/cli/bootstrap.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
