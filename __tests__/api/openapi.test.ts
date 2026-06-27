@@ -47,6 +47,9 @@ describe("GET /api/openapi.json", () => {
     expectPathParam(spec.paths["/api/quests/{id}/subtasks/{subtaskId}"].patch, "id")
     expectPathParam(spec.paths["/api/quests/{id}/subtasks/{subtaskId}"].patch, "subtaskId")
 
+    expect(spec.paths["/api/quests/{id}/chain"]).toHaveProperty("get")
+    expectPathParam(spec.paths["/api/quests/{id}/chain"].get, "id")
+
     expect(spec.paths["/api/leaderboard"]).toHaveProperty("get")
 
     for (const path of [
@@ -70,6 +73,7 @@ describe("GET /api/openapi.json", () => {
       spec.paths["/api/notifications"].post,
       spec.paths["/api/quests/{id}/subtasks"].post,
       spec.paths["/api/quests/{id}/subtasks/{subtaskId}"].patch,
+      spec.paths["/api/quests/{id}/chain"].get,
       spec.paths["/api/leaderboard"].get,
     ]) {
       expectRateLimited(operation)

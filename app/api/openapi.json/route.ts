@@ -249,6 +249,19 @@ const spec = {
         },
       }),
     },
+    "/api/quests/{id}/chain": {
+      get: op("Quests", "Read the forward quest chain", ["id"], undefined, {
+        responseSchema: {
+          type: "object",
+          properties: {
+            chain: { type: "array", items: { type: "string" } },
+            length: { type: "integer", minimum: 1 },
+          },
+          required: ["chain", "length"],
+        },
+        responses: { 404: notFound },
+      }),
+    },
     "/api/leaderboard": {
       get: op("Leaderboard", "List leaderboard agents", [], undefined, {
         query: [
