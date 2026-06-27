@@ -1,3 +1,5 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { dirname, join } from "node:path"
 import { publishSystemEvent } from "@/lib/events/system-events"
 import type { AgentStatus, DistrictId } from "@/lib/types"
 
@@ -8,6 +10,7 @@ export interface AgentX402Manifest {
 
 export interface AgentCapabilityManifest {
   agentId: string
+  name?: string
   model: string
   district: DistrictId
   capabilities: string[]
@@ -34,12 +37,29 @@ interface AgentRegistryState {
   agents: Map<string, AgentCapabilityManifest>
 }
 
+const REGISTRY_DB_PATH = process.env.OPEN_STELLAR_AGENT_DB_PATH || join(process.cwd(), ".open-stellar", "agents-registry.json")
+
+function loadPersistedAgents(): Map<string, AgentCapabilityManifest> {
+  try {
+    if (!existsSync(REGISTRY_DB_PATH)) return new Map()
+    const parsed = JSON.parse(readFileSync(REGISTRY_DB_PATH, "utf8")) as { agents?: AgentCapabilityManifest[] }
+    return new Map((parsed.agents ?? []).map((agent) => [agent.agentId, agent]))
+  } catch {
+    return new Map()
+  }
+}
+
+function persistAgents(): void {
+  mkdirSync(dirname(REGISTRY_DB_PATH), { recursive: true })
+  writeFileSync(REGISTRY_DB_PATH, JSON.stringify({ agents: Array.from(registry.agents.values()) }, null, 2))
+}
+
 const globalState = globalThis as typeof globalThis & {
   __openStellarAgentRegistry__?: AgentRegistryState
 }
 
 const registry: AgentRegistryState = globalState.__openStellarAgentRegistry__ ?? {
-  agents: new Map<string, AgentCapabilityManifest>(),
+  agents: loadPersistedAgents(),
 }
 
 if (!globalState.__openStellarAgentRegistry__) {
@@ -178,6 +198,7 @@ export function registerAgent(input: unknown): AgentCapabilityManifest {
 
   const agent: AgentCapabilityManifest = {
     agentId,
+    name: typeof input.name === "string" && input.name.trim() ? input.name.trim() : agentId,
     model: normalizeString(input.model, "model"),
     district: normalizeDistrict(input.district),
     capabilities: normalizeCapabilities(input.capabilities),
@@ -190,6 +211,7 @@ export function registerAgent(input: unknown): AgentCapabilityManifest {
   }
 
   registry.agents.set(agent.agentId, agent)
+  persistAgents()
   emitRegistryChange("registered", agent)
   return agent
 }
@@ -211,6 +233,7 @@ export function updateAgentCapabilities(agentId: string, input: unknown): AgentC
   }
 
   registry.agents.set(agentId, updated)
+  persistAgents()
   emitRegistryChange("updated", updated)
   return updated
 }
@@ -220,10 +243,12 @@ export function deregisterAgent(agentId: string): AgentCapabilityManifest | null
   if (!existing) return null
 
   registry.agents.delete(agentId)
+  persistAgents()
   emitRegistryChange("deregistered", existing)
   return existing
 }
 
 export function resetAgentRegistryForTests(): void {
   registry.agents.clear()
+  persistAgents()
 }

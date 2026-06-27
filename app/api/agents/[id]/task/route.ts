@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server"
 import { getOrCreateAgent, listAgentTaskRecords, normalizeTaskInput } from "@/lib/agent-runtime/agent"
 import { findAgentByLookup } from "@/lib/og-card-data"
+import { getRegisteredAgent } from "@/lib/agent-registry"
 
 interface RouteContext {
   params: Promise<{ id: string }>
 }
 
 function getRuntimeAgent(id: string) {
+  const registeredAgent = getRegisteredAgent(id)
   const displayAgent = findAgentByLookup(id)
   return getOrCreateAgent({
-    id: displayAgent?.id ?? id,
-    name: displayAgent?.name ?? id,
-    model: displayAgent?.model ?? "claude/runtime-delegated",
-    district: displayAgent?.district,
+    id: registeredAgent?.agentId ?? displayAgent?.id ?? id,
+    name: registeredAgent?.name ?? displayAgent?.name ?? id,
+    model: registeredAgent?.model ?? displayAgent?.model ?? "claude/runtime-delegated",
+    district: registeredAgent?.district ?? displayAgent?.district,
     cpu: displayAgent?.cpu,
     memory: displayAgent?.memory,
     autoRestart: displayAgent?.autoRestart,

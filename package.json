@@ -1,5 +1,5 @@
 {
-  "name": "my-project",
+  "name": "open-stellar",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -106,5 +106,8 @@
     "typescript": "5.7.3",
     "vitest": "^4.1.9",
     "webpack": "^5.97.1"
+  },
+  "bin": {
+    "open-stellar": "bin/open-stellar.mjs"
   }
 }
