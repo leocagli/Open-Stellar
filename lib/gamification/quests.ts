@@ -26,6 +26,7 @@ export interface Quest {
   description: string
   reward: QuestReward
   progress: number
+  unlocksQuestId?: string
   minReputation?: number
   completedAt?: string
   expiresAt?: string
@@ -41,6 +42,7 @@ interface QuestDefinition {
   reward: QuestReward
   goal: number
   metric: QuestMetric
+  unlocksQuestId?: string
   minReputation?: number
 }
 
@@ -299,6 +301,7 @@ export function buildQuests(stats: QuestStats, now: Date = new Date()): Quest[] 
         progress,
         subTasks,
         status: questStatus,
+        ...(definition.unlocksQuestId ? { unlocksQuestId: definition.unlocksQuestId } : {}),
         ...(definition.minReputation !== undefined ? { minReputation: definition.minReputation } : {}),
         ...(isAllDone ? { completedAt: questCompletedAt } : {}),
         ...(expiresAt ? { expiresAt } : {}),
@@ -315,6 +318,7 @@ export function buildQuests(stats: QuestStats, now: Date = new Date()): Quest[] 
         reward: definition.reward,
         progress,
         status: questStatus,
+        ...(definition.unlocksQuestId ? { unlocksQuestId: definition.unlocksQuestId } : {}),
         ...(definition.minReputation !== undefined ? { minReputation: definition.minReputation } : {}),
         ...(progress >= 100 ? { completedAt } : {}),
         ...(expiresAt ? { expiresAt } : {}),
