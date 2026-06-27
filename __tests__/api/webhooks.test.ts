@@ -592,6 +592,7 @@ describe("webhook API", () => {
         ok: true,
         retried: false,
         attempt: 1,
+        status: "success",
       })
     }
 

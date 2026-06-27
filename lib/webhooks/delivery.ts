@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto"
 import { subscribeToSystemEvents, type PublishedSystemEvent } from "@/lib/events/system-events"
 import { appendWebhookDeliveryAttempt } from "@/lib/webhooks/delivery-log"
 import { listWebhooksWithSecrets, type WebhookRegistration } from "@/lib/webhooks/store"
+import { evaluateFilters, type WebhookFilter } from "@/lib/webhooks/filter"
 
 const WEBHOOK_TIMEOUT_MS = 5_000
 const RETRY_DELAYS_MS = [5_000, 30_000, 120_000]
@@ -100,6 +101,7 @@ function recordDeliveryAttempt(
   result: WebhookPostResult,
   retried: boolean,
   attempt: number,
+  status: "success" | "failed" | "filtered",
 ): void {
   try {
     appendWebhookDeliveryAttempt({
@@ -111,13 +113,31 @@ function recordDeliveryAttempt(
       ok: result.ok,
       retried,
       attempt,
+      status,
     })
   } catch {
     // Delivery should not depend on local log persistence.
   }
 }
 
-async function deliverToWebhook(webhook: WebhookRegistration, event: string, body: string): Promise<void> {
+async function deliverToWebhook(webhook: WebhookRegistration, event: string, body: string, payload: unknown): Promise<void> {
+  // ─── FILTER GATE ──────────────────────────────────────────────────
+  const filters = (webhook as WebhookRegistration & { filters?: WebhookFilter[] }).filters
+  const passes = evaluateFilters(filters, payload)
+
+  if (!passes) {
+    recordDeliveryAttempt(
+      webhook,
+      event,
+      { durationMs: 0, responseStatus: null, ok: false },
+      false,
+      1,
+      "filtered",
+    )
+    return
+  }
+  // ────────────────────────────────────────────────────────────────────
+
   const maxAttempts = retryDelaysMs.length + 1
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -127,7 +147,7 @@ async function deliverToWebhook(webhook: WebhookRegistration, event: string, bod
     }
 
     const result = await postWebhook(webhook.url, body, webhook.secret)
-    recordDeliveryAttempt(webhook, event, result, attempt > 1, attempt)
+    recordDeliveryAttempt(webhook, event, result, attempt > 1, attempt, result.ok ? "success" : "failed")
     if (result.ok) return
   }
 }
@@ -141,7 +161,7 @@ export async function deliverWebhookEvent(event: PublishedSystemEvent): Promise<
     payload: event,
   })
 
-  await Promise.all(matchingWebhooks.map((webhook) => deliverToWebhook(webhook, event.type, body)))
+  await Promise.all(matchingWebhooks.map((webhook) => deliverToWebhook(webhook, event.type, body, event)))
 }
 
 export function registerWebhookDeliveryListener(): void {
