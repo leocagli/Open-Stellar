@@ -36,7 +36,7 @@ export type AgentGraphQuery =
   | { flat: boolean; maxDepth: number }
   | { error: "max_depth_exceeded" }
 
-type GraphDirection = "dependencies" | "dependents"
+export type GraphDirection = "dependencies" | "dependents"
 
 interface InternalTreeNode {
   agentId: string
@@ -125,6 +125,16 @@ export function buildAgentDependentTree(agentId: string, maxDepth: number): Agen
   }
 }
 
+export function buildAgentGraphTree(
+  agentId: string,
+  direction: GraphDirection,
+  maxDepth: number,
+): AgentDependencyTree | AgentDependentTree {
+  return direction === "dependencies"
+    ? buildAgentDependencyTree(agentId, maxDepth)
+    : buildAgentDependentTree(agentId, maxDepth)
+}
+
 export function flattenAgentGraph(
   agentId: string,
   direction: GraphDirection,
@@ -134,8 +144,7 @@ export function flattenAgentGraph(
   const seen = new Set([agentId])
   const queue: Array<{ agentId: string; depth: number }> = [{ agentId, depth: 0 }]
 
-  for (let index = 0; index < queue.length; index += 1) {
-    const current = queue[index]
+  for (const current of queue) {
     if (current.depth >= maxDepth) continue
 
     for (const neighborId of getNeighbors(current.agentId, direction)) {

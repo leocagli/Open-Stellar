@@ -271,7 +271,7 @@ export function listAgentPositions(): AgentPosition[] {
 
 export function getAgentPosition(agentId: string): AgentPosition | null {
   ensureInitializedPositions()
-  return state.positions.get(agentId.trim()) ?? null
+  return state.positions.get(normalizeAgentId(agentId)) ?? null
 }
 
 export function moveAgentPosition(agentId: string, input: AgentMoveInput): AgentPosition {

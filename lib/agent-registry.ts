@@ -85,7 +85,7 @@ function normalizeCapabilities(value: unknown): string[] {
 function normalizeDependencies(value: unknown): string[] | undefined {
   if (value === undefined) return undefined
   if (!Array.isArray(value)) {
-    throw new Error("dependencies must be an array")
+    throw new TypeError("dependencies must be an array")
   }
 
   const dependencies = value.map((dependency, index) => normalizeString(dependency, `dependencies[${index}]`))
