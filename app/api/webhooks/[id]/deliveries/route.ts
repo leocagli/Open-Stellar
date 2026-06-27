@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { listWebhookDeliveries } from "@/lib/webhooks/delivery-log"
+import { listWebhookDeliveryAttempts, listWebhookDeliveries } from "@/lib/webhooks/delivery-log"
 import { registerWebhookDeliveryListener } from "@/lib/webhooks/delivery"
 import { getWebhookById } from "@/lib/webhooks/store"
 
@@ -18,7 +18,7 @@ function parseLimit(req: Request): number {
 
   const parsed = Number.parseInt(limit, 10)
   if (!Number.isFinite(parsed)) return 20
-  return Math.min(Math.max(parsed, 1), 100)
+  return Math.min(Math.max(parsed, 1), 200)
 }
 
 export async function GET(req: Request, context: RouteContext) {
@@ -35,16 +35,19 @@ export async function GET(req: Request, context: RouteContext) {
 
   const url = new URL(req.url)
   const statusParam = url.searchParams.get("status")
-
-  const status =
-    statusParam === "success" || statusParam === "failure"
-      ? statusParam
-      : undefined
-
   const limit = parseLimit(req)
 
+  // NEW: When status filter is provided, return the DeliveryListItem shape
+  if (statusParam === "success" || statusParam === "failure") {
+    return NextResponse.json(
+      { deliveries: listWebhookDeliveries(webhookId, { status: statusParam, limit }) },
+      { headers: { "Cache-Control": "no-store" } },
+    )
+  }
+
+  // DEFAULT: Return the original WebhookDeliveryAttempt shape for backward compatibility
   return NextResponse.json(
-    { deliveries: listWebhookDeliveries(webhookId, { status, limit }) },
+    { deliveries: listWebhookDeliveryAttempts(webhookId, limit) },
     { headers: { "Cache-Control": "no-store" } },
   )
 }
