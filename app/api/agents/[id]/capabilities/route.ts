@@ -25,7 +25,7 @@ export async function GET(req: Request, context: RouteContext) {
     agentId,
     skills: agent.capabilities.map(cap => ({ id: cap, version: "1.0.0" })),
     districts: [{ districtId: agent.district, unlockedAt: agent.registeredAt }],
-    badges: reputation.badges.map(b => ({ id: b.id, awardedAt: b.awardedAt })),
+    badges: (reputation.metrics?.badges ?? []).map((b: { id: string; awardedAt: string }) => ({ id: b.id, awardedAt: b.awardedAt })),
     xp: stats.xpFromQuests,
     questsCompleted: stats.questsCompleted
   })
