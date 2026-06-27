@@ -221,10 +221,10 @@ export interface DrainOptions {
 const MAX_DRAIN_ITEMS = 200
 const DEFAULT_DRAIN_ITEMS = 50
 
-export function drainAgentTasks(
+export async function drainAgentTasks(
   agentId: string,
   options: DrainOptions = {},
-): { result: DrainResult | null; alreadyDraining: boolean } {
+): Promise<{ result: DrainResult | null; alreadyDraining: boolean }> {
   const cleanId = normalizeAgentId(agentId)
 
   // Check if drain already in progress

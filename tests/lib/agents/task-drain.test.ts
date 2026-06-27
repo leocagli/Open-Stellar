@@ -14,13 +14,13 @@ describe("task-queue drain and purge", () => {
   })
 
   describe("drainAgentTasks", () => {
-    it("processes tasks in FIFO order", () => {
+    it("processes tasks in FIFO order", async () => {
       createTask("agent-1", { type: "a", payload: {} })
       createTask("agent-1", { type: "b", payload: {} })
       createTask("agent-1", { type: "c", payload: {} })
 
       const processedTasks: string[] = []
-      const { result } = drainAgentTasks("agent-1", {
+      const { result } = await drainAgentTasks("agent-1", {
         processor: async (task) => {
           processedTasks.push(task.type)
         },
@@ -38,8 +38,8 @@ describe("task-queue drain and purge", () => {
       expect(stats.completedTasks).toBe(3)
     })
 
-    it("returns empty result when queue is empty", () => {
-      const { result } = drainAgentTasks("agent-1")
+    it("returns empty result when queue is empty", async () => {
+      const { result } = await drainAgentTasks("agent-1")
 
       expect(result).not.toBeNull()
       expect(result!.processed).toBe(0)
@@ -47,12 +47,12 @@ describe("task-queue drain and purge", () => {
       expect(result!.errors).toHaveLength(0)
     })
 
-    it("respects maxItems limit", () => {
+    it("respects maxItems limit", async () => {
       for (let i = 0; i < 10; i++) {
         createTask("agent-1", { type: `task-${i}`, payload: {} })
       }
 
-      const { result } = drainAgentTasks("agent-1", { maxItems: 5 })
+      const { result } = await drainAgentTasks("agent-1", { maxItems: 5 })
 
       expect(result).not.toBeNull()
       expect(result!.processed).toBe(5)
@@ -62,13 +62,13 @@ describe("task-queue drain and purge", () => {
       expect(stats.completedTasks).toBe(5)
     })
 
-    it("caps maxItems at 200", () => {
+    it("caps maxItems at 200", async () => {
       // Create 250 tasks
       for (let i = 0; i < 250; i++) {
         createTask("agent-1", { type: `task-${i}`, payload: {} })
       }
 
-      const { result } = drainAgentTasks("agent-1", { maxItems: 300 })
+      const { result } = await drainAgentTasks("agent-1", { maxItems: 300 })
 
       expect(result).not.toBeNull()
       // Should only process 200 (the cap)
@@ -79,12 +79,12 @@ describe("task-queue drain and purge", () => {
       expect(stats.completedTasks).toBe(200)
     })
 
-    it("uses default maxItems of 50", () => {
+    it("uses default maxItems of 50", async () => {
       for (let i = 0; i < 100; i++) {
         createTask("agent-1", { type: `task-${i}`, payload: {} })
       }
 
-      const { result } = drainAgentTasks("agent-1")
+      const { result } = await drainAgentTasks("agent-1")
 
       expect(result).not.toBeNull()
       expect(result!.processed).toBe(50)
@@ -94,12 +94,12 @@ describe("task-queue drain and purge", () => {
       expect(stats.completedTasks).toBe(50)
     })
 
-    it("handles processor errors gracefully", () => {
+    it("handles processor errors gracefully", async () => {
       createTask("agent-1", { type: "success", payload: {} })
       createTask("agent-1", { type: "fail", payload: {} })
       createTask("agent-1", { type: "success", payload: {} })
 
-      const { result } = drainAgentTasks("agent-1", {
+      const { result } = await drainAgentTasks("agent-1", {
         processor: async (task) => {
           if (task.type === "fail") {
             throw new Error("Processing failed")
@@ -117,61 +117,56 @@ describe("task-queue drain and purge", () => {
       expect(stats.failedTasks).toBe(1)
     })
 
-    it("returns 409 on concurrent drain attempts", () => {
+    it("returns 409 on concurrent drain attempts", async () => {
       for (let i = 0; i < 10; i++) {
         createTask("agent-1", { type: `task-${i}`, payload: {} })
       }
 
-      // Start first drain with a slow processor
-      let firstDrainComplete = false
-      const firstDrain = new Promise((resolve) => {
-        setTimeout(() => {
-          const { result } = drainAgentTasks("agent-1", {
-            processor: async () => {
-              // Simulate slow processing
-              await new Promise((r) => setTimeout(r, 10))
-            },
-          })
-          firstDrainComplete = true
-          resolve(result)
-        }, 0)
+      // Start first drain with a slow processor in background
+      const firstDrainPromise = drainAgentTasks("agent-1", {
+        processor: async () => {
+          // Simulate slow processing
+          await new Promise((r) => setTimeout(r, 10))
+        },
       })
 
-      // Attempt concurrent drain
-      const { result: result2, alreadyDraining } = drainAgentTasks("agent-1")
+      // Wait a tiny bit for first drain to start
+      await new Promise((r) => setTimeout(r, 1))
+
+      // Attempt concurrent drain - should get 409
+      const { result: result2, alreadyDraining } = await drainAgentTasks("agent-1")
 
       expect(alreadyDraining).toBe(true)
       expect(result2).toBeNull()
 
-      return firstDrain.then(() => {
-        expect(firstDrainComplete).toBe(true)
-      })
+      // Wait for first drain to complete
+      await firstDrainPromise
     })
 
-    it("allows drain after previous drain completes", () => {
+    it("allows drain after previous drain completes", async () => {
       for (let i = 0; i < 10; i++) {
         createTask("agent-1", { type: `task-${i}`, payload: {} })
       }
 
-      const { result: result1, alreadyDraining: drain1 } = drainAgentTasks("agent-1", {
+      const { result: result1, alreadyDraining: drain1 } = await drainAgentTasks("agent-1", {
         maxItems: 5,
       })
       expect(drain1).toBe(false)
       expect(result1!.processed).toBe(5)
 
-      const { result: result2, alreadyDraining: drain2 } = drainAgentTasks("agent-1", {
+      const { result: result2, alreadyDraining: drain2 } = await drainAgentTasks("agent-1", {
         maxItems: 5,
       })
       expect(drain2).toBe(false)
       expect(result2!.processed).toBe(5)
     })
 
-    it("isolates drain between different agents", () => {
+    it("isolates drain between different agents", async () => {
       createTask("agent-1", { type: "a", payload: {} })
       createTask("agent-2", { type: "b", payload: {} })
 
-      const { result: result1 } = drainAgentTasks("agent-1")
-      const { result: result2 } = drainAgentTasks("agent-2")
+      const { result: result1 } = await drainAgentTasks("agent-1")
+      const { result: result2 } = await drainAgentTasks("agent-2")
 
       expect(result1!.processed).toBe(1)
       expect(result2!.processed).toBe(1)
@@ -180,10 +175,10 @@ describe("task-queue drain and purge", () => {
       expect(stats.completedTasks).toBe(2)
     })
 
-    it("records accurate durationMs", () => {
+    it("records accurate durationMs", async () => {
       createTask("agent-1", { type: "task", payload: {} })
 
-      const { result } = drainAgentTasks("agent-1", {
+      const { result } = await drainAgentTasks("agent-1", {
         processor: async () => {
           await new Promise((r) => setTimeout(r, 10))
         },
@@ -278,13 +273,13 @@ describe("task-queue drain and purge", () => {
   })
 
   describe("drain + purge integration", () => {
-    it("purge after partial drain", () => {
+    it("purge after partial drain", async () => {
       for (let i = 0; i < 20; i++) {
         createTask("agent-1", { type: `task-${i}`, payload: {} })
       }
 
       // Drain 10
-      const { result } = drainAgentTasks("agent-1", { maxItems: 10 })
+      const { result } = await drainAgentTasks("agent-1", { maxItems: 10 })
       expect(result!.processed).toBe(10)
 
       // Purge remaining 10
@@ -296,14 +291,14 @@ describe("task-queue drain and purge", () => {
       expect(stats.completedTasks).toBe(10)
     })
 
-    it("drain after purge returns empty", () => {
+    it("drain after purge returns empty", async () => {
       createTask("agent-1", { type: "a", payload: {} })
       createTask("agent-1", { type: "b", payload: {} })
 
       const purged = purgeAgentTasks("agent-1")
       expect(purged).toBe(2)
 
-      const { result } = drainAgentTasks("agent-1")
+      const { result } = await drainAgentTasks("agent-1")
       expect(result!.processed).toBe(0)
     })
   })

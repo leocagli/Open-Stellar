@@ -17,7 +17,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     const maxItems = body.maxItems ? Math.max(1, Number(body.maxItems)) : undefined
 
-    const { result, alreadyDraining } = drainAgentTasks(agentId, {
+    const { result, alreadyDraining } = await drainAgentTasks(agentId, {
       maxItems,
       processor: async (task) => {
         // Emit task.completed event for each successfully processed task
