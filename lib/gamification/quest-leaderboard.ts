@@ -1,4 +1,5 @@
 import type { NotificationRecord } from "@/lib/notifications/notification-store"
+import type { QuestLeaderboardEntry } from "./leaderboard-cache"
 import {
   getCachedLeaderboard,
   setCachedLeaderboard,
@@ -6,19 +7,11 @@ import {
   getCacheStatus,
 } from "./leaderboard-cache"
 
-export interface QuestLeaderboardEntry {
-  agentId: string
-  questsCompleted: number
-  xpFromQuests: number
-  rank: number
-}
-
 export type LeaderboardPeriod = "daily" | "weekly"
 
 export { invalidateLeaderboardCache, getCacheStatus }
-
-// Re-export for test isolation
 export { resetLeaderboardCache } from "./leaderboard-cache"
+export type { QuestLeaderboardEntry } from "./leaderboard-cache"
 
 function getPeriodWindow(period: LeaderboardPeriod, nowMs = Date.now()): { startMs: number; endMs: number } {
   const now = new Date(nowMs)
