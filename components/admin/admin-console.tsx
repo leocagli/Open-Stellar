@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { Activity, AlertTriangle, Check, Cloud, Code2, Copy, Cpu, Download, ExternalLink, Fingerprint, ReceiptText, History, KeyRound, Layers3, ListChecks, RadioTower, Rocket, Server, Shield, Terminal, Wallet } from "lucide-react"
+import { Activity, AlertTriangle, BarChart3, Check, Cloud, Code2, Copy, Cpu, Download, ExternalLink, Fingerprint, ReceiptText, History, KeyRound, Layers3, ListChecks, RadioTower, Rocket, Server, Shield, Terminal, Wallet } from "lucide-react"
 import type { District, MoltbotAgent } from "@/lib/types"
 import { PassportPanel } from "@/components/admin/passport-panel"
 
-type AdminTab = "overview" | "queue" | "passport" | "private-deploy" | "receipts" | "cloud-agents"
+type AdminTab = "overview" | "queue" | "observability" | "passport" | "private-deploy" | "receipts" | "cloud-agents"
 
 type Plan = {
   name: string
@@ -183,6 +183,9 @@ export function AdminConsole({ agents, districts }: AdminConsoleProps) {
           <TabButton active={tab === "queue"} onClick={() => setTab("queue")} icon={<ListChecks className="h-3.5 w-3.5" />}>
             Task queue
           </TabButton>
+          <TabButton active={tab === "observability"} onClick={() => setTab("observability")} icon={<BarChart3 className="h-3.5 w-3.5" />}>
+            Observability
+          </TabButton>
           <TabButton active={tab === "passport"} onClick={() => setTab("passport")} icon={<Fingerprint className="h-3.5 w-3.5" />}>
             Agent Passport (ZK)
           </TabButton>
@@ -196,6 +199,8 @@ export function AdminConsole({ agents, districts }: AdminConsoleProps) {
 
         {tab === "queue" ? (
           <TaskQueueTab />
+        ) : tab === "observability" ? (
+          <ObservabilityTab />
         ): tab === "receipts" ? (
           <ReceiptsTab />
         ) : tab === "passport" ? (
@@ -760,6 +765,109 @@ type QueueTask = {
   error?: string
 }
 
+type MetricsSnapshot = {
+  counters: Array<{ name: string; value: number; labels: Record<string, string> }>
+  gauges: Array<{ name: string; value: number; labels: Record<string, string> }>
+  histograms: Array<{ name: string; count: number; p50: number; p95: number; p99: number; labels: Record<string, string> }>
+  charts: {
+    requestRate24h: Array<{ hour: string; count: number }>
+    errorRate24h: Array<{ hour: string; count: number }>
+    x402Revenue24h: Array<{ hour: string; xlm: number }>
+  }
+  topFailingAgents: Array<{ agentId: string; failures: number }>
+}
+
+function ObservabilityTab() {
+  const [snapshot, setSnapshot] = useState<MetricsSnapshot | null>(null)
+  const [status, setStatus] = useState("Loading observability data…")
+
+  useEffect(() => {
+    let mounted = true
+    fetch("/api/internal/metrics", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!mounted) return
+        if (!data.ok) {
+          setStatus(data.error || "Failed to load metrics")
+          return
+        }
+        setSnapshot(data)
+        setStatus("")
+      })
+      .catch(() => {
+        if (mounted) setStatus("Failed to load metrics")
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const findCounter = (name: string) => snapshot?.counters.filter((sample) => sample.name === name).reduce((sum, sample) => sum + sample.value, 0) ?? 0
+  const findGauge = (name: string) => snapshot?.gauges.find((sample) => sample.name === name)?.value ?? 0
+  const taskHistogram = snapshot?.histograms.find((sample) => sample.name === "task.duration_ms")
+  const totalRequests = snapshot?.charts.requestRate24h.reduce((sum, bucket) => sum + bucket.count, 0) ?? 0
+  const totalErrors = snapshot?.charts.errorRate24h.reduce((sum, bucket) => sum + bucket.count, 0) ?? 0
+  const x402Revenue = snapshot?.charts.x402Revenue24h.reduce((sum, bucket) => sum + bucket.xlm, 0) ?? 0
+
+  if (status) {
+    return (
+      <section className="rounded-[28px] border border-cyan-500/20 bg-slate-950/60 p-5">
+        <p className="font-vt323 text-xl text-slate-400">{status}</p>
+      </section>
+    )
+  }
+
+  return (
+    <section className="grid gap-5 xl:grid-cols-[0.75fr_1.25fr]">
+      <Panel title="Live signals" eyebrow="Structured metrics" bodyClassName="space-y-3">
+        <TelemetryRow icon={<Activity className="h-4 w-4" />} label="Requests / 24h" value={String(totalRequests)} tone="text-cyan-300" />
+        <TelemetryRow icon={<AlertTriangle className="h-4 w-4" />} label="Errors / 24h" value={String(totalErrors)} tone="text-rose-300" />
+        <TelemetryRow icon={<RadioTower className="h-4 w-4" />} label="Agents online" value={String(findGauge("agents.online"))} tone="text-emerald-300" />
+        <TelemetryRow icon={<Wallet className="h-4 w-4" />} label="x402 revenue / 24h" value={`${x402Revenue.toFixed(4)} XLM`} tone="text-amber-300" />
+        <TelemetryRow icon={<Check className="h-4 w-4" />} label="Tasks completed" value={String(findCounter("tasks.completed"))} tone="text-violet-300" />
+      </Panel>
+
+      <Panel title="Request and error rate" eyebrow="Last 24 hours" bodyClassName="space-y-5">
+        <MiniBarChart
+          label="Request rate"
+          color="bg-cyan-400"
+          buckets={snapshot?.charts.requestRate24h.map((bucket) => ({ label: bucket.hour, value: bucket.count })) ?? []}
+        />
+        <MiniBarChart
+          label="Error rate"
+          color="bg-rose-400"
+          buckets={snapshot?.charts.errorRate24h.map((bucket) => ({ label: bucket.hour, value: bucket.count })) ?? []}
+        />
+      </Panel>
+
+      <Panel title="Task duration percentiles" eyebrow="Histogram" bodyClassName="grid gap-3 sm:grid-cols-3">
+        <SignalStat label="p50" value={`${Math.round(taskHistogram?.p50 ?? 0)}ms`} color="text-cyan-300" />
+        <SignalStat label="p95" value={`${Math.round(taskHistogram?.p95 ?? 0)}ms`} color="text-amber-300" />
+        <SignalStat label="p99" value={`${Math.round(taskHistogram?.p99 ?? 0)}ms`} color="text-rose-300" />
+      </Panel>
+
+      <Panel title="Top failing agents" eyebrow="Recovery focus" bodyClassName="space-y-3">
+        {snapshot?.topFailingAgents.length ? snapshot.topFailingAgents.map((agent) => (
+          <TelemetryRow key={agent.agentId} icon={<AlertTriangle className="h-4 w-4" />} label={agent.agentId} value={`${agent.failures} failures`} tone="text-rose-300" />
+        )) : (
+          <p className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 font-vt323 text-lg text-emerald-200">
+            No task failures recorded in this process.
+          </p>
+        )}
+      </Panel>
+
+      <Panel title="x402 revenue over time" eyebrow="Payment rail" bodyClassName="space-y-4 xl:col-span-2">
+        <MiniBarChart
+          label="XLM revenue"
+          color="bg-amber-300"
+          buckets={snapshot?.charts.x402Revenue24h.map((bucket) => ({ label: bucket.hour, value: bucket.xlm })) ?? []}
+        />
+      </Panel>
+    </section>
+  )
+}
+
 function TaskQueueTab() {
   const [tasks, setTasks] = useState<QueueTask[]>([])
   const [loading, setLoading] = useState(true)
@@ -915,6 +1023,38 @@ function TelemetryRow({
         <p className="text-sm text-slate-300">{label}</p>
       </div>
       <p className={`font-mono text-sm ${tone}`}>{value}</p>
+    </div>
+  )
+}
+
+function MiniBarChart({
+  label,
+  color,
+  buckets,
+}: {
+  label: string
+  color: string
+  buckets: Array<{ label: string; value: number }>
+}) {
+  const max = Math.max(1, ...buckets.map((bucket) => bucket.value))
+
+  return (
+    <div className="rounded-[20px] border border-slate-800 bg-slate-950/70 p-4">
+      <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-slate-500">
+        <span>{label}</span>
+        <span>{buckets.reduce((sum, bucket) => sum + bucket.value, 0).toFixed(2)}</span>
+      </div>
+      <div className="flex h-28 items-end gap-1">
+        {buckets.map((bucket) => (
+          <div key={bucket.label} className="flex flex-1 items-end">
+            <div
+              className={`w-full rounded-t ${color} opacity-80`}
+              title={`${new Date(bucket.label).toLocaleTimeString([], { hour: "2-digit" })}: ${bucket.value}`}
+              style={{ height: `${Math.max(4, (bucket.value / max) * 100)}%` }}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

@@ -1,4 +1,6 @@
 import { DISTRICTS } from "@/lib/data"
+import { logger } from "@/lib/observability/logger"
+import { setGauge } from "@/lib/observability/metrics"
 import type { DistrictId } from "@/lib/types"
 
 export type QueuedTaskPriority = "critical" | "high" | "normal" | "low"
@@ -61,6 +63,17 @@ const PRIORITY_WEIGHT: Record<QueuedTaskPriority, number> = {
 }
 
 const RETRY_BACKOFF_SECONDS = [5, 15, 45, 135] as const
+
+function updateQueueDepthGauges(): void {
+  const priorities: QueuedTaskPriority[] = ["critical", "high", "normal", "low"]
+  for (const priority of priorities) {
+    setGauge(
+      "tasks.queue.depth",
+      { priority },
+      [...queueState.tasks.values()].filter((task) => task.status === "pending" && task.priority === priority).length,
+    )
+  }
+}
 
 function nextTaskId(): string {
   queueState.sequence += 1
@@ -128,6 +141,14 @@ export function enqueueTask(input: EnqueueTaskInput): QueuedTask {
 
   if (queueState.tasks.has(task.id)) throw new Error("Task id already exists")
   queueState.tasks.set(task.id, task)
+  updateQueueDepthGauges()
+  void logger.info("task.queued", {
+    taskId: task.id,
+    priority: task.priority,
+    agentId: task.targetAgentId,
+    district: task.targetDistrict,
+    type: task.type,
+  })
   return task
 }
 
@@ -171,6 +192,8 @@ export function cancelTask(id: string): QueuedTask {
   if (task.status !== "pending") throw new Error("Only pending tasks can be cancelled")
   const updated = { ...task, status: "cancelled" as const, updatedAt: new Date().toISOString() }
   queueState.tasks.set(id, updated)
+  updateQueueDepthGauges()
+  void logger.warn("task.cancelled", { taskId: id, priority: task.priority, agentId: task.targetAgentId, district: task.targetDistrict })
   return updated
 }
 
@@ -181,6 +204,8 @@ export function failTask(id: string, error: string): QueuedTask {
   if (task.retryCount >= task.maxRetries) {
     const dead = { ...task, status: "dead-letter" as const, error, updatedAt: now.toISOString(), deadLetteredAt: now.toISOString() }
     queueState.tasks.set(id, dead)
+    updateQueueDepthGauges()
+    void logger.error("task.dead_lettered", { taskId: id, priority: task.priority, agentId: task.targetAgentId, district: task.targetDistrict, error })
     return dead
   }
   const backoffSeconds = RETRY_BACKOFF_SECONDS[Math.min(task.retryCount, RETRY_BACKOFF_SECONDS.length - 1)]
@@ -193,6 +218,16 @@ export function failTask(id: string, error: string): QueuedTask {
     updatedAt: now.toISOString(),
   }
   queueState.tasks.set(id, retry)
+  updateQueueDepthGauges()
+  void logger.warn("task.retry_scheduled", {
+    taskId: id,
+    priority: retry.priority,
+    retryCount: retry.retryCount,
+    scheduledFor: retry.scheduledFor,
+    agentId: retry.targetAgentId,
+    district: retry.targetDistrict,
+    error,
+  })
   return retry
 }
 
@@ -209,5 +244,7 @@ export function retryDeadLetterTask(id: string): QueuedTask {
     updatedAt: new Date().toISOString(),
   }
   queueState.tasks.set(id, retry)
+  updateQueueDepthGauges()
+  void logger.info("task.dead_letter_retry", { taskId: id, priority: retry.priority, agentId: retry.targetAgentId, district: retry.targetDistrict })
   return retry
 }

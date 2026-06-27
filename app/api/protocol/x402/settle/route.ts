@@ -7,6 +7,8 @@ import { settleMockX402 } from '@/lib/mock/x402-mock'
 import { publishSystemEvent } from '@/lib/events/system-events'
 import { XP_AWARDS } from '@/lib/gamification/constants'
 import { awardXP } from '@/lib/gamification/xp'
+import { logger } from '@/lib/observability/logger'
+import { recordX402Payment } from '@/lib/observability/metrics'
 
 function ledgerFromBody(body: Record<string, unknown>): unknown {
   return body.lastPaymentLedger ?? body.ledger ?? body.ledgerSequence
@@ -79,6 +81,8 @@ export async function POST(req: Request) {
           receipt,
         })
       }
+      recordX402Payment({ service: paymentRef.split(':')[0] || 'mock', agentId: agentId || paidBy })
+      await logger.info('x402.settle.completed', { mode: 'mock', paymentRef, chain, txHash: receipt.txHash, agentId: agentId || paidBy, subscriptionId })
       return await api.json({ ok: true, receipt, subscriptionProof }, undefined, { event: 'x402.settle.mock', paymentRef, subscriptionId })
     }
 
@@ -114,6 +118,7 @@ export async function POST(req: Request) {
     })
 
     if (!result.ok || !result.receipt) {
+      await logger.error('x402.settle.failed', { reason: result.error, paymentRef, chain, paidBy, agentId })
       return await api.json(
         { ok: false, error: result.error || 'x402 settlement rejected' },
         { status: 400 },
@@ -136,6 +141,23 @@ export async function POST(req: Request) {
       receipt: result.receipt,
     })
     awardXP(agentId || paidBy, XP_AWARDS.X402_PAYMENT_RECEIVED, 'payment.received')
+    recordX402Payment({
+      service: quote?.serviceId ?? paymentRef.split(':')[0] ?? 'unknown',
+      amountXlm: result.receipt.chain === 'stellar' ? Number(result.receipt.amountUnits ?? 0) / 10_000_000 : 0,
+      amountUsd: result.receipt.amountUsd,
+      agentId: agentId || paidBy,
+    })
+    await logger.info('x402.settle.completed', {
+      paymentRef,
+      chain,
+      paidBy,
+      agentId: agentId || paidBy,
+      txHash: result.receipt.txHash,
+      service: quote?.serviceId,
+      amountUsd: result.receipt.amountUsd,
+      amountUnits: result.receipt.amountUnits,
+      subscriptionId,
+    })
 
     return await api.json({ ok: true, receipt: result.receipt, subscriptionProof }, undefined, {
       event: 'x402.settle.completed',
@@ -146,6 +168,7 @@ export async function POST(req: Request) {
       subscriptionId,
     })
   } catch (error) {
+    await logger.error('x402.settle.failed', { error })
     return await api.report(
       'error',
       error,

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { Logtail } from '@logtail/node'
+import { logger, sanitizeContext } from '@/lib/observability/logger'
+import { incrementCounter, recordHistogram } from '@/lib/observability/metrics'
 
 export type ApiLogLevel = 'info' | 'warn' | 'error'
 
@@ -18,51 +19,8 @@ export interface ApiRouteLogger {
   report(level: ApiLogLevel, error: unknown, body: unknown, init?: ResponseInit, details?: ApiLogContext): Promise<NextResponse>
 }
 
-const globalState = globalThis as typeof globalThis & {
-  __openStellarLogtail__?: Logtail | null
-}
-
-function getLogger(): Logtail | null {
-  const token = process.env.LOGTAIL_SOURCE_TOKEN?.trim()
-  if (!token) return null
-
-  if (globalState.__openStellarLogtail__ === undefined) {
-    globalState.__openStellarLogtail__ = new Logtail(token)
-  }
-
-  return globalState.__openStellarLogtail__
-}
-
-function normalizeValue(value: unknown): unknown {
-  if (value instanceof Error) {
-    return {
-      name: value.name,
-      message: value.message,
-      stack: value.stack,
-    }
-  }
-
-  if (typeof value === 'string' && value.length > 500) {
-    return `${value.slice(0, 497)}...`
-  }
-
-  return value
-}
-
-function normalizeKeyedValue(key: string, value: unknown): unknown {
-  if (/(authorization|cookie|password|secret|token|api[_-]?key|signedxdr)/i.test(key)) {
-    return '[redacted]'
-  }
-
-  return normalizeValue(value)
-}
-
 function normalizeContext(context: ApiLogContext): ApiLogContext {
-  return Object.fromEntries(
-    Object.entries(context)
-      .filter(([, value]) => value !== undefined)
-      .map(([key, value]) => [key, normalizeKeyedValue(key, value)]),
-  )
+  return sanitizeContext(context)
 }
 
 function levelForStatus(status: number): ApiLogLevel {
@@ -79,7 +37,7 @@ function routeContext(
 ): ApiLogContext {
   const url = new URL(req.url)
   const query = Object.fromEntries(
-    Array.from(url.searchParams.entries(), ([key, value]) => [key, normalizeKeyedValue(key, value)]),
+    Array.from(url.searchParams.entries(), ([key, value]) => [key, normalizeContext({ [key]: value })[key]]),
   )
 
   return normalizeContext({
@@ -93,18 +51,13 @@ function routeContext(
 }
 
 async function emit(level: ApiLogLevel, message: string, context: ApiLogContext) {
-  const logger = getLogger()
-  if (!logger) return
-
-  try {
-    await logger[level](message, context)
-  } catch {
-    // Logging must never break the request path.
-  }
+  await logger[level](message, context)
+  incrementCounter(message, { route: context.route, method: context.method, status: context.status })
+  if (typeof context.durationMs === 'number') recordHistogram('api.route.duration_ms', { route: context.route, method: context.method }, context.durationMs)
 }
 
 export function clearLogtailLoggerForTests() {
-  globalState.__openStellarLogtail__ = undefined
+  // Kept for backwards-compatible tests; the shared structured logger owns its client cache.
 }
 
 export async function logApiEvent(level: ApiLogLevel, message: string, context: ApiLogContext = {}) {

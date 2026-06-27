@@ -2,6 +2,8 @@ import { recordAgentHeartbeat } from "@/lib/agents/agent-health-store"
 import { sendAgentMessage } from "@/lib/agent-runtime/messaging"
 import type { AgentConfig, AgentMetrics, AgentRuntimeContext, AgentMessage, MessageHandler, Task, TaskHandler, TaskResult } from "@/lib/agent-runtime/types"
 import { publishSystemEvent } from "@/lib/events/system-events"
+import { logger } from "@/lib/observability/logger"
+import { recordTaskCompleted, recordTaskFailed, setGauge } from "@/lib/observability/metrics"
 import type { AgentStatus } from "@/lib/types"
 
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000
@@ -85,6 +87,8 @@ export class Agent implements AgentRuntimeContext {
     this.recordHeartbeat()
     this.heartbeatTimer ??= setInterval(() => this.recordHeartbeat(), this.config.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS)
     publishSystemEvent({ type: "agent.status", agentId: this.id, status: this.status })
+    setGauge("agents.online", {}, [...runtimeState.agents.values()].filter((agent) => agent.getStatus() !== "offline").length)
+    void logger.info("agent.started", { agentId: this.id, district: this.config.district })
   }
 
   async stop(): Promise<void> {
@@ -94,6 +98,8 @@ export class Agent implements AgentRuntimeContext {
     this.status = "offline"
     this.recordHeartbeat()
     publishSystemEvent({ type: "agent.status", agentId: this.id, status: this.status })
+    setGauge("agents.online", {}, [...runtimeState.agents.values()].filter((agent) => agent.getStatus() !== "offline").length)
+    void logger.info("agent.stopped", { agentId: this.id, district: this.config.district })
   }
 
   async restart(): Promise<void> {
@@ -118,6 +124,7 @@ export class Agent implements AgentRuntimeContext {
     this.recordHeartbeat(task.title)
     writeTaskRecord(this.id, { task, result: null, status: "running", updatedAt: startedAt })
     publishSystemEvent({ type: "task.started", agentId: this.id, task: { id: task.id, title: task.title, district: task.district } })
+    void logger.info("task.started", { agentId: this.id, taskId: task.id, district: task.district })
 
     try {
       const handler = this.taskHandlers.at(-1)
@@ -140,6 +147,8 @@ export class Agent implements AgentRuntimeContext {
       this.recordHeartbeat()
       writeTaskRecord(this.id, { task, result, status: "completed", updatedAt: completedAt })
       publishSystemEvent({ type: "task.completed", agentId: this.id, taskId: task.id, result: { summary: result.summary, durationMs } })
+      recordTaskCompleted({ agentId: this.id, taskId: task.id, durationMs, district: task.district })
+      void logger.info("task.completed", { agentId: this.id, taskId: task.id, durationMs, district: task.district })
       return result
     } catch (error) {
       const completedAt = isoNow()
@@ -159,6 +168,8 @@ export class Agent implements AgentRuntimeContext {
       this.recordHeartbeat(task.title)
       writeTaskRecord(this.id, { task, result, status: "failed", updatedAt: completedAt })
       publishSystemEvent({ type: "task.completed", agentId: this.id, taskId: task.id, result: { summary: result.error ?? result.summary, durationMs } })
+      recordTaskFailed({ agentId: this.id, taskId: task.id, durationMs, district: task.district })
+      void logger.error("task.failed", { agentId: this.id, taskId: task.id, durationMs, district: task.district, error })
       return result
     }
   }
