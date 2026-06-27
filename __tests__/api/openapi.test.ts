@@ -32,10 +32,18 @@ function expectRateLimited(operation: OpenApiOperation) {
 }
 
 describe("GET /api/openapi.json", () => {
-  it("documents implemented notifications, quests, leaderboard, and rate-limit responses", async () => {
+  it("documents implemented agent task/rate-limit endpoints plus shared rate-limit responses", async () => {
     const spec = await loadSpec()
 
     expect(spec.openapi).toBe("3.1.0")
+
+    expect(spec.paths["/api/agents/{id}/task"]).toHaveProperty("get")
+    expect(spec.paths["/api/agents/{id}/task"]).toHaveProperty("post")
+    expectPathParam(spec.paths["/api/agents/{id}/task"].get, "id")
+    expectPathParam(spec.paths["/api/agents/{id}/task"].post, "id")
+
+    expect(spec.paths["/api/agents/{id}/rate-limit/status"]).toHaveProperty("get")
+    expectPathParam(spec.paths["/api/agents/{id}/rate-limit/status"].get, "id")
 
     expect(spec.paths["/api/notifications"]).toHaveProperty("get")
     expect(spec.paths["/api/notifications"]).toHaveProperty("post")
@@ -50,6 +58,9 @@ describe("GET /api/openapi.json", () => {
     expect(spec.paths["/api/leaderboard"]).toHaveProperty("get")
 
     for (const operation of [
+      spec.paths["/api/agents/{id}/task"].get,
+      spec.paths["/api/agents/{id}/task"].post,
+      spec.paths["/api/agents/{id}/rate-limit/status"].get,
       spec.paths["/api/notifications"].get,
       spec.paths["/api/notifications"].post,
       spec.paths["/api/quests/{id}/subtasks"].post,

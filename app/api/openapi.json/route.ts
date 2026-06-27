@@ -87,6 +87,52 @@ const spec = {
     { name: "Agents" }, { name: "Protocol" }, { name: "Stellar" }, { name: "Events" }, { name: "Webhooks" }, { name: "Admin" }, { name: "User" }, { name: "Explorer" }, { name: "Prices" }, { name: "Notifications" }, { name: "Quests" }, { name: "Leaderboard" },
   ],
   paths: {
+    "/api/agents/{id}/task": {
+      get: op("Agents", "List task records for an agent", ["id"], undefined, {
+        responseSchema: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean", enum: [true] },
+            tasks: { type: "array", items: { type: "object", additionalProperties: true } },
+          },
+          required: ["ok", "tasks"],
+        },
+      }),
+      post: op("Agents", "Execute a task for an agent", ["id"], { title: "Inspect feed", payload: { scope: "latest" } }, {
+        successStatus: 201,
+        responseSchema: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean", enum: [true] },
+            result: { type: "object", additionalProperties: true },
+          },
+          required: ["ok", "result"],
+        },
+      }),
+    },
+    "/api/agents/{id}/rate-limit/status": {
+      get: op("Agents", "Read rate limit usage for an agent", ["id"], undefined, {
+        responseSchema: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean", enum: [true] },
+            agentId: { type: "string" },
+            status: {
+              type: "object",
+              properties: {
+                requestsInWindow: { type: "integer", minimum: 0 },
+                limit: { type: "integer", minimum: 1 },
+                windowMs: { type: "integer", minimum: 1 },
+                resetsAt: { type: "string", format: "date-time" },
+                rateLimitHits: { type: "integer", minimum: 0 },
+              },
+              required: ["requestsInWindow", "limit", "windowMs", "resetsAt", "rateLimitHits"],
+            },
+          },
+          required: ["ok", "agentId", "status"],
+        },
+      }),
+    },
     "/api/agents/{id}/messages": { post: op("Agents", "Send a message to an agent", ["id"], { role: "user", content: "Hello" }) },
     "/api/agents/{id}/health": { get: op("Agents", "Read agent health", ["id"]) },
     "/api/agents/{id}/heartbeat": { post: op("Agents", "Record agent heartbeat", ["id"], { status: "active", load: 0.2 }) },
