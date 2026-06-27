@@ -39,6 +39,8 @@ describe("GET /api/openapi.json", () => {
 
     expect(spec.paths["/api/notifications"]).toHaveProperty("get")
     expect(spec.paths["/api/notifications"]).toHaveProperty("post")
+    expect(spec.paths["/api/notifications/preferences"]).toHaveProperty("get")
+    expect(spec.paths["/api/notifications/preferences"]).toHaveProperty("patch")
 
     expect(spec.paths["/api/quests/{id}/subtasks"]).toHaveProperty("post")
     expectPathParam(spec.paths["/api/quests/{id}/subtasks"].post, "id")
@@ -68,6 +70,8 @@ describe("GET /api/openapi.json", () => {
       spec.paths["/api/agents/{id}/dependents"].get,
       spec.paths["/api/notifications"].get,
       spec.paths["/api/notifications"].post,
+      spec.paths["/api/notifications/preferences"].get,
+      spec.paths["/api/notifications/preferences"].patch,
       spec.paths["/api/quests/{id}/subtasks"].post,
       spec.paths["/api/quests/{id}/subtasks/{subtaskId}"].patch,
       spec.paths["/api/leaderboard"].get,

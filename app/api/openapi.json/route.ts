@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 
+import { NOTIFICATION_TYPES } from "@/lib/notifications/notification-store"
+
 const json = { "application/json": { schema: { type: "object" } } }
 const error = { description: "Error", content: json }
 const notFound = { description: "Not found", content: json }
@@ -31,7 +33,7 @@ const notificationSchema = {
     id: { type: "string" },
     cursor: { type: "string" },
     agentId: { type: "string" },
-    type: { type: "string", enum: ["agent_offline", "quest_completed", "reputation_updated"] },
+    type: { type: "string", enum: [...NOTIFICATION_TYPES] },
     title: { type: "string" },
     body: { type: "string" },
     resourceHref: { type: "string" },
@@ -184,6 +186,44 @@ const spec = {
             unreadCount: { type: "integer" },
           },
           required: ["ok", "agentId", "markedRead", "unreadCount"],
+        },
+      }),
+    },
+    "/api/notifications/preferences": {
+      get: op("Notifications", "Read notification preferences", [], undefined, {
+        query: [queryParam("agentId", { type: "string" }, true)],
+        responseSchema: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean", enum: [true] },
+            agentId: { type: "string" },
+            muted: { type: "array", items: { type: "string", enum: [...NOTIFICATION_TYPES] } },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+          required: ["ok", "agentId", "muted", "updatedAt"],
+        },
+      }),
+      patch: op("Notifications", "Update notification preferences", [], {
+        agentId: "agent-nexus",
+        muted: ["agent_offline"],
+      }, {
+        requestBodySchema: {
+          type: "object",
+          properties: {
+            agentId: { type: "string" },
+            muted: { type: "array", items: { type: "string", enum: [...NOTIFICATION_TYPES] } },
+          },
+          required: ["agentId", "muted"],
+        },
+        responseSchema: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean", enum: [true] },
+            agentId: { type: "string" },
+            muted: { type: "array", items: { type: "string", enum: [...NOTIFICATION_TYPES] } },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+          required: ["ok", "agentId", "muted", "updatedAt"],
         },
       }),
     },
