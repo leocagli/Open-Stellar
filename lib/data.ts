@@ -192,6 +192,7 @@ export function createAgents(): MoltbotAgent[] {
       skills: generateSkills(district.id, random),
       autoRestart: i % 3 === 0,
       appearance: { skin: "default", accessories: [], customColor: null },
+      badges: [],
     }
   })
 }

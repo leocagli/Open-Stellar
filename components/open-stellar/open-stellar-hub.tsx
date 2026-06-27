@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react"
-import { Activity, Bot, BriefcaseBusiness, MessageSquare, PanelBottomOpen, Palette, ScrollText, WalletCards, Wrench } from "lucide-react"
+import { Activity, Bot, BriefcaseBusiness, MessageSquare, PanelBottomOpen, Award, Palette, ScrollText, WalletCards, Wrench } from "lucide-react"
 import { toast } from "sonner"
 import { PixelCity, type FloatingOverlay, type ParticleTrigger, type TxAnimation } from "@/components/pixel-city"
 import { SidebarPanel, SIDEBAR_TABS, type SidebarTabId } from "@/components/sidebar-panel"
@@ -51,6 +51,7 @@ const MOBILE_NAV_ICONS: Record<SidebarTabId, ComponentType<{ size?: number; "ari
   chat: MessageSquare,
   offers: BriefcaseBusiness,
   skills: Wrench,
+  badges: Award,
   quests: ScrollText,
   wallet: WalletCards,
   appearance: Palette,
@@ -479,6 +480,21 @@ export function OpenStellarHub() {
           return {
             ...agent,
             status: "active",
+          }
+        }
+
+        if (event.type === "badge.unlocked") {
+          return {
+            ...agent,
+            badges: [
+              ...(agent.badges ?? []).filter((badge) => badge.id !== event.badge.id),
+              {
+                ...event.badge,
+                description: event.badge.description ?? "Unlocked achievement",
+                icon: event.badge.icon ?? "🏅",
+                rarity: event.badge.rarity ?? "common",
+              },
+            ],
           }
         }
 

@@ -15,7 +15,11 @@ export interface TaskResult {
 export interface Badge {
   id: string
   name: string
-  rarity?: "common" | "rare" | "epic" | "legendary"
+  description?: string
+  icon?: string
+  rarity: "common" | "rare" | "epic" | "legendary"
+  unlockedAt?: string
+  mintable?: boolean
 }
 
 interface BaseEvent {
@@ -26,7 +30,7 @@ interface BaseEvent {
 export type SystemEvent =
   | (BaseEvent & { type: "agent.status"; agentId: string; status: AgentStatus })
   | (BaseEvent & { type: "task.started"; agentId: string; task: AgentTask })
-  | (BaseEvent & { type: "task.completed"; agentId: string; taskId: string; result: TaskResult; skillId?: string })
+  | (BaseEvent & { type: "task.completed"; agentId: string; taskId: string; result: TaskResult; skillId?: string; taskType?: string })
   | (BaseEvent & { type: "payment.received"; agentId: string; receipt: X402Receipt })
   | (BaseEvent & { type: "quest.completed"; agentId: string; questId?: string; quest?: unknown; reward?: unknown })
   | (BaseEvent & { type: "quest.unlocked"; agentId: string; questId: string })
@@ -95,6 +99,13 @@ export function publishSystemEvent(event: SystemEvent): PublishedSystemEvent {
   for (const listener of eventBus.listeners) {
     listener(published)
   }
+
+  if (published.type !== "badge.unlocked") {
+    void import("@/lib/gamification/badges").then(({ processBadgeEvent }) => {
+      void processBadgeEvent(published)
+    })
+  }
+
   return published
 }
 

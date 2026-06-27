@@ -46,6 +46,16 @@ export interface WalletTransaction {
   hash: string
 }
 
+export interface AgentBadge {
+  id: string
+  name: string
+  description: string
+  icon: string
+  rarity: "common" | "rare" | "epic" | "legendary"
+  unlockedAt?: string
+  mintable?: boolean
+}
+
 export interface MoltbotAgent {
   id: string
   name: string
@@ -75,6 +85,7 @@ export interface MoltbotAgent {
   offlineForSeconds?: number
   wallet?: StellarWallet
   appearance: AgentAppearance
+  badges?: AgentBadge[]
 }
 
 export interface District {

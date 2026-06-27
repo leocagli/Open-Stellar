@@ -11,9 +11,10 @@ import { SkillsPanel } from "./skills-panel"
 import { WalletPanel } from "./wallet-panel"
 import { AppearancePanel } from "./appearance-panel"
 import { QuestsPanel } from "./quests-panel"
+import { BadgesPanel } from "./badges-panel"
 import { MOCK_OFFERS, TaskBoard, getTaskOfferCounts } from "./task-board"
 
-export type SidebarTabId = "overview" | "chat" | "offers" | "skills" | "quests" | "wallet" | "appearance"
+export type SidebarTabId = "overview" | "chat" | "offers" | "skills" | "badges" | "quests" | "wallet" | "appearance"
 
 interface NotificationItem {
   id: string
@@ -32,6 +33,7 @@ export const SIDEBAR_TABS: { id: SidebarTabId; label: string }[] = [
   { id: "chat", label: "Chat" },
   { id: "offers", label: "Offers" },
   { id: "skills", label: "Skills" },
+  { id: "badges", label: "Badges" },
   { id: "quests", label: "Quests" },
   { id: "wallet", label: "Wallet" },
   { id: "appearance", label: "Appearance" },
@@ -923,6 +925,9 @@ export function SidebarPanel({
         )}
         {activeTab === "skills" && (
           <SkillsPanel selectedAgent={selectedAgent} agents={agents} onUpgradeSkill={onUpgradeSkill} />
+        )}
+        {activeTab === "badges" && (
+          <BadgesPanel selectedAgent={selectedAgent} />
         )}
         {activeTab === "quests" && (
           <QuestsPanel selectedAgentId={selectedAgent?.id ?? null} />
