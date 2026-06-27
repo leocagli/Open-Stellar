@@ -20,10 +20,11 @@ export async function GET(req: Request, context: RouteContext) {
   
   const reputation = getReputation(agentId)
   const stats = getAgentQuestStats(agentId)
+  const skillVersions = new Map(agent.skillVersions?.map((skill) => [skill.id, skill.version]))
   
   return NextResponse.json({
     agentId,
-    skills: agent.capabilities.map(cap => ({ id: cap, version: "1.0.0" })),
+    skills: agent.capabilities.map(cap => ({ id: cap, version: skillVersions.get(cap) ?? "1.0.0" })),
     districts: [{ districtId: agent.district, unlockedAt: agent.registeredAt }],
     badges: (reputation.metrics?.badges ?? []).map((b: { id: string; awardedAt: string }) => ({ id: b.id, awardedAt: b.awardedAt })),
     xp: stats.xpFromQuests,

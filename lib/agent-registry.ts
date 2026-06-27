@@ -1,20 +1,31 @@
 import { publishSystemEvent } from "@/lib/events/system-events"
 import type { AgentStatus, DistrictId } from "@/lib/types"
+import { valid } from "semver"
 
 export interface AgentX402Manifest {
   accepts: boolean
   pricePerTask?: string
 }
 
-export interface AgentCapabilityManifest {
+export interface SkillRegistration {
+  id: string
+  version?: string
+  minCallerVersion?: string
+}
+
+export interface AgentRegistration {
   agentId: string
   model: string
   district: DistrictId
   capabilities: string[]
+  skillVersions?: SkillRegistration[]
   dependencies?: string[]
   x402: AgentX402Manifest
   status: AgentStatus
   endpoint: string
+}
+
+export interface AgentCapabilityManifest extends AgentRegistration {
   registeredAt: string
   updatedAt: string
 }
@@ -80,6 +91,55 @@ function normalizeCapabilities(value: unknown): string[] {
 
   const capabilities = value.map((capability, index) => normalizeString(capability, `capabilities[${index}]`))
   return Array.from(new Set(capabilities))
+}
+
+function normalizeSemver(value: unknown, field: string): string {
+  const version = normalizeString(value, field)
+  const normalized = valid(version)
+  if (!normalized) {
+    throw new Error(`${field} must be a valid semver version`)
+  }
+  return normalized
+}
+
+function normalizeSkillVersions(value: unknown, capabilities: string[]): SkillRegistration[] | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    throw new Error("skillVersions must be an array")
+  }
+
+  const capabilityIds = new Set(capabilities)
+  const seenIds = new Set<string>()
+
+  return value.map((entry, index) => {
+    if (!isRecord(entry)) {
+      throw new Error(`skillVersions[${index}] must be an object`)
+    }
+
+    const id = normalizeString(entry.id, `skillVersions[${index}].id`)
+    if (seenIds.has(id)) {
+      throw new Error(`skillVersions contains duplicate id: ${id}`)
+    }
+    if (!capabilityIds.has(id)) {
+      throw new Error(`skillVersions id is not present in capabilities: ${id}`)
+    }
+    seenIds.add(id)
+
+    return {
+      id,
+      version: entry.version === undefined
+        ? "1.0.0"
+        : normalizeSemver(entry.version, `skillVersions[${index}].version`),
+      ...(entry.minCallerVersion === undefined
+        ? {}
+        : {
+            minCallerVersion: normalizeSemver(
+              entry.minCallerVersion,
+              `skillVersions[${index}].minCallerVersion`,
+            ),
+          }),
+    }
+  })
 }
 
 function normalizeDependencies(value: unknown): string[] | undefined {
@@ -173,6 +233,8 @@ export function registerAgent(input: unknown): AgentCapabilityManifest {
 
   const now = new Date().toISOString()
   const agentId = normalizeString(input.agentId, "agentId")
+  const capabilities = normalizeCapabilities(input.capabilities)
+  const skillVersions = normalizeSkillVersions(input.skillVersions, capabilities)
   const dependencies = normalizeDependencies(input.dependencies)
   validateDependencies(agentId, dependencies ?? [])
 
@@ -180,7 +242,8 @@ export function registerAgent(input: unknown): AgentCapabilityManifest {
     agentId,
     model: normalizeString(input.model, "model"),
     district: normalizeDistrict(input.district),
-    capabilities: normalizeCapabilities(input.capabilities),
+    capabilities,
+    ...(skillVersions === undefined ? {} : { skillVersions }),
     ...(dependencies === undefined ? {} : { dependencies }),
     x402: normalizeX402(input.x402),
     status: normalizeStatus(input.status),
@@ -204,9 +267,14 @@ export function updateAgentCapabilities(agentId: string, input: unknown): AgentC
     throw new Error("capability update must be an object")
   }
 
+  const capabilities = normalizeCapabilities(input.capabilities)
+  const capabilityIds = new Set(capabilities)
   const updated: AgentCapabilityManifest = {
     ...existing,
-    capabilities: normalizeCapabilities(input.capabilities),
+    capabilities,
+    ...(existing.skillVersions === undefined
+      ? {}
+      : { skillVersions: existing.skillVersions.filter((skill) => capabilityIds.has(skill.id)) }),
     updatedAt: new Date().toISOString(),
   }
 

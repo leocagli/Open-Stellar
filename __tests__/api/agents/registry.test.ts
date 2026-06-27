@@ -81,4 +81,36 @@ describe("agent registry API", () => {
 
     expect(post.status).toBe(400)
   })
+
+  it.each([
+    {
+      name: "invalid skill versions",
+      skillVersions: [{ id: "data-indexing", version: "not-semver" }],
+      error: "skillVersions[0].version must be a valid semver version",
+    },
+    {
+      name: "invalid minimum caller versions",
+      skillVersions: [{ id: "data-indexing", minCallerVersion: "next" }],
+      error: "skillVersions[0].minCallerVersion must be a valid semver version",
+    },
+    {
+      name: "duplicate skill metadata",
+      skillVersions: [{ id: "data-indexing" }, { id: "data-indexing" }],
+      error: "skillVersions contains duplicate id: data-indexing",
+    },
+    {
+      name: "metadata for unexposed skills",
+      skillVersions: [{ id: "summarize", version: "1.0.0" }],
+      error: "skillVersions id is not present in capabilities: summarize",
+    },
+  ])("rejects $name", async ({ skillVersions, error }) => {
+    const post = await POST(new Request("http://localhost/api/agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...manifest, skillVersions }),
+    }))
+
+    expect(post.status).toBe(400)
+    await expect(post.json()).resolves.toEqual({ ok: false, error })
+  })
 })

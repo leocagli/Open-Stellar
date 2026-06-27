@@ -24,7 +24,11 @@ describe("GET /api/agents/:id/capabilities", () => {
       agentId: "bot-full",
       model: "test-model",
       district: "data-center",
-      capabilities: ["translate"],
+      capabilities: ["translate", "summarize"],
+      skillVersions: [
+        { id: "translate", version: "2.1.0" },
+        { id: "summarize" },
+      ],
       status: "active",
       endpoint: "http://test",
       x402: { accepts: true }
@@ -43,7 +47,10 @@ describe("GET /api/agents/:id/capabilities", () => {
     const json = await res.json()
     expect(json).toEqual({
       agentId: "bot-full",
-      skills: [{ id: "translate", version: "1.0.0" }],
+      skills: [
+        { id: "translate", version: "2.1.0" },
+        { id: "summarize", version: "1.0.0" },
+      ],
       districts: [{ districtId: "data-center", unlockedAt: agent.registeredAt }],
       badges: [{ id: "badge-speed", awardedAt: "2026-06-25T08:00:00Z" }],
       xp: 1250,

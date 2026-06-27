@@ -92,6 +92,32 @@ const spec = {
     "/api/agents/{id}/messages": { post: op("Agents", "Send a message to an agent", ["id"], { role: "user", content: "Hello" }) },
     "/api/agents/{id}/health": { get: op("Agents", "Read agent health", ["id"]) },
     "/api/agents/{id}/heartbeat": { post: op("Agents", "Record agent heartbeat", ["id"], { status: "active", load: 0.2 }) },
+    "/api/agents/{id}/capabilities/compat": {
+      get: op("Agents", "Check caller compatibility with agent capabilities", ["id"], undefined, {
+        query: [queryParam("callerVersion", { type: "string", example: "1.0.0" }, true)],
+        responseSchema: {
+          type: "object",
+          properties: {
+            compatible: { type: "boolean" },
+            skills: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  version: { type: "string" },
+                  compatible: { type: "boolean" },
+                  requires: { type: "string", example: ">=2.0.0" },
+                },
+                required: ["id", "version", "compatible"],
+              },
+            },
+          },
+          required: ["compatible", "skills"],
+        },
+        responses: { 404: notFound },
+      }),
+    },
     "/api/agents/{id}/dependencies": {
       get: op("Agents", "Read an agent dependency graph", ["id"], undefined, {
         query: [
