@@ -62,21 +62,19 @@ describe("task-queue drain and purge", () => {
       expect(stats.completedTasks).toBe(5)
     })
 
-    it("caps maxItems at 200", async () => {
-      // Create 250 tasks
-      for (let i = 0; i < 250; i++) {
+    it("caps maxItems at 100", async () => {
+      for (let i = 0; i < 150; i++) {
         createTask("agent-1", { type: `task-${i}`, payload: {} })
       }
 
-      const { result } = await drainAgentTasks("agent-1", { maxItems: 300 })
+      const { result } = await drainAgentTasks("agent-1", { maxItems: 200 })
 
       expect(result).not.toBeNull()
-      // Should only process 200 (the cap)
-      expect(result!.processed).toBe(200)
+      expect(result!.processed).toBe(100)
 
       const stats = getQueueStats()
       expect(stats.pendingTasks).toBe(50)
-      expect(stats.completedTasks).toBe(200)
+      expect(stats.completedTasks).toBe(100)
     })
 
     it("uses default maxItems of 50", async () => {
@@ -108,7 +106,7 @@ describe("task-queue drain and purge", () => {
       })
 
       expect(result).not.toBeNull()
-      expect(result!.processed).toBe(2) // Two successful
+      expect(result!.processed).toBe(2)
       expect(result!.errors).toHaveLength(1)
       expect(result!.errors[0].error).toBe("Processing failed")
 
@@ -122,24 +120,19 @@ describe("task-queue drain and purge", () => {
         createTask("agent-1", { type: `task-${i}`, payload: {} })
       }
 
-      // Start first drain with a slow processor in background
       const firstDrainPromise = drainAgentTasks("agent-1", {
         processor: async () => {
-          // Simulate slow processing
           await new Promise((r) => setTimeout(r, 10))
         },
       })
 
-      // Wait a tiny bit for first drain to start
       await new Promise((r) => setTimeout(r, 1))
 
-      // Attempt concurrent drain - should get 409
       const { result: result2, alreadyDraining } = await drainAgentTasks("agent-1")
 
       expect(alreadyDraining).toBe(true)
       expect(result2).toBeNull()
 
-      // Wait for first drain to complete
       await firstDrainPromise
     })
 
@@ -213,7 +206,6 @@ describe("task-queue drain and purge", () => {
       createTask("agent-1", { type: "a", payload: {} })
       createTask("agent-1", { type: "b", payload: {} })
 
-      // Start processing first task (it will be running)
       const { result } = await drainAgentTasks("agent-1", {
         maxItems: 1,
         processor: async (task) => {
@@ -224,11 +216,9 @@ describe("task-queue drain and purge", () => {
 
       const purged = purgeAgentTasks("agent-1")
 
-      // Should only purge the one pending task
       expect(purged).toBe(1)
 
       const tasks = listAgentTasks("agent-1")
-      // Should have 1 completed task remaining
       expect(tasks.filter((t) => t.status === "completed")).toHaveLength(1)
     })
 
@@ -242,7 +232,7 @@ describe("task-queue drain and purge", () => {
       expect(purged).toBe(2)
 
       const stats = getQueueStats()
-      expect(stats.pendingTasks).toBe(1) // agent-2 task remains
+      expect(stats.pendingTasks).toBe(1)
     })
 
     it("removes agent from queue map when all tasks purged", () => {
@@ -259,12 +249,11 @@ describe("task-queue drain and purge", () => {
       createTask("agent-1", { type: "a", payload: {} })
       createTask("agent-1", { type: "b", payload: {} })
 
-      // Process first task to completion
       await drainAgentTasks("agent-1", { maxItems: 1 })
 
       const purged = purgeAgentTasks("agent-1")
 
-      expect(purged).toBe(1) // Only the pending task
+      expect(purged).toBe(1)
 
       const tasks = listAgentTasks("agent-1")
       expect(tasks).toHaveLength(1)
@@ -278,11 +267,9 @@ describe("task-queue drain and purge", () => {
         createTask("agent-1", { type: `task-${i}`, payload: {} })
       }
 
-      // Drain 10
       const { result } = await drainAgentTasks("agent-1", { maxItems: 10 })
       expect(result!.processed).toBe(10)
 
-      // Purge remaining 10
       const purged = purgeAgentTasks("agent-1")
       expect(purged).toBe(10)
 
