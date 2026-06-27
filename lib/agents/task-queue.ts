@@ -202,3 +202,117 @@ export function getQueueStats(): {
     failedTasks: failed,
   }
 }
+
+// Track agents currently draining to prevent concurrent drains
+const drainingAgents = new Set<string>()
+
+export interface DrainResult {
+  processed: number
+  skipped: number
+  errors: Array<{ taskId: string; error: string }>
+  durationMs: number
+}
+
+export interface DrainOptions {
+  maxItems?: number
+  processor?: (task: AgentTask) => Promise<void>
+}
+
+const MAX_DRAIN_ITEMS = 200
+const DEFAULT_DRAIN_ITEMS = 50
+
+export function drainAgentTasks(
+  agentId: string,
+  options: DrainOptions = {},
+): { result: DrainResult | null; alreadyDraining: boolean } {
+  const cleanId = normalizeAgentId(agentId)
+
+  // Check if drain already in progress
+  if (drainingAgents.has(cleanId)) {
+    return { result: null, alreadyDraining: true }
+  }
+
+  drainingAgents.add(cleanId)
+
+  try {
+    const startTime = Date.now()
+    const maxItems = Math.min(
+      Math.max(1, options.maxItems ?? DEFAULT_DRAIN_ITEMS),
+      MAX_DRAIN_ITEMS,
+    )
+
+    const result: DrainResult = {
+      processed: 0,
+      skipped: 0,
+      errors: [],
+      durationMs: 0,
+    }
+
+    cleanupTimeouts()
+
+    // Process tasks in FIFO order up to maxItems
+    for (let i = 0; i < maxItems; i++) {
+      const task = dequeueNextTask(cleanId)
+
+      if (!task) {
+        // No more pending tasks
+        break
+      }
+
+      try {
+        // Call processor if provided (for testing/custom logic)
+        if (options.processor) {
+          await options.processor(task)
+        }
+
+        // Mark as completed
+        updateTask(cleanId, task.id, { status: "completed" })
+        result.processed++
+      } catch (error) {
+        // Mark as failed and record error
+        updateTask(cleanId, task.id, { status: "failed" })
+        result.errors.push({
+          taskId: task.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        })
+      }
+    }
+
+    result.durationMs = Date.now() - startTime
+
+    return { result, alreadyDraining: false }
+  } finally {
+    drainingAgents.delete(cleanId)
+  }
+}
+
+export function purgeAgentTasks(agentId: string): number {
+  const cleanId = normalizeAgentId(agentId)
+  const db = getDb()
+  const queue = db.agentQueues.get(cleanId) ?? []
+
+  let purged = 0
+
+  // Remove all pending tasks
+  for (const taskId of queue) {
+    const task = db.tasks.get(taskId)
+    if (task && task.status === "pending") {
+      db.tasks.delete(taskId)
+      purged++
+    }
+  }
+
+  // Update the queue to only include non-pending tasks
+  const remainingTasks = queue.filter((taskId) => {
+    const task = db.tasks.get(taskId)
+    return task && task.status !== "pending"
+  })
+
+  if (remainingTasks.length === 0) {
+    db.agentQueues.delete(cleanId)
+  } else {
+    db.agentQueues.set(cleanId, remainingTasks)
+  }
+
+  return purged
+}
