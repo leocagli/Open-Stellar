@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { NextRequest } from "next/server"
-import { GET } from "../../[id]/stats/route"
+import { GET } from "../[id]/stats/route"
 import {
   appendWebhookDeliveryAttempt,
   resetWebhookDeliveryLogForTests,
