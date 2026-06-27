@@ -38,11 +38,18 @@ describe("invocation-ledger", () => {
 
     const all = listInvocations()
     expect(all).toHaveLength(3)
-    expect(all[0].skillId).toBe("skill-b")
-    expect(all[1].skillId).toBe("skill-a")
+    // Newest first: tx3 (agent-2/skill-a), tx2 (agent-1/skill-b), tx1 (agent-1/skill-a)
+    expect(all[0].skillId).toBe("skill-a")
+    expect(all[0].agentId).toBe("agent-2")
+    expect(all[1].skillId).toBe("skill-b")
+    expect(all[1].agentId).toBe("agent-1")
+    expect(all[2].skillId).toBe("skill-a")
+    expect(all[2].agentId).toBe("agent-1")
 
     const filtered = listInvocations({ agentId: "agent-1" })
     expect(filtered).toHaveLength(2)
+    expect(filtered[0].skillId).toBe("skill-b")
+    expect(filtered[1].skillId).toBe("skill-a")
   })
 
   it("filters by skillId and limits results", () => {
