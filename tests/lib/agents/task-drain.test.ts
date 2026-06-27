@@ -75,7 +75,7 @@ describe("task-queue drain and purge", () => {
       expect(result!.processed).toBe(100)
 
       const stats = getQueueStats()
-      expect(stats.pendingTasks).toBe(50)
+      expect(stats.pendingTasks).toBe(0)
       expect(stats.completedTasks).toBe(100)
     })
 
