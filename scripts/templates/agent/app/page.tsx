@@ -38,7 +38,7 @@ export default function AgentDashboard() {
             WebkitTextFillColor: 'transparent',
           }}
         >
-          {{PROJECT_NAME}}
+          {'{{PROJECT_NAME}}'}
         </h1>
 
         <p
