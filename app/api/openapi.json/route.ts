@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { NOTIFICATION_TYPES } from "@/lib/notifications/notification-store"
+import { BADGE_RARITY_VALUES } from "@/lib/gamification/badge-catalog"
 
 const json = { "application/json": { schema: { type: "object" } } }
 const error = { description: "Error", content: json }
@@ -230,6 +231,55 @@ const spec = {
               status: { type: "string", enum: ["dead"] },
             },
             required: ["id", "webhookId", "payload", "attempts", "nextRetryAt", "createdAt", "status"],
+          },
+        },
+      }),
+    },
+    "/api/agents/{id}/badges": {
+      get: op("Agents", "List badges earned by an agent", ["id"], undefined, {
+        query: [queryParam("rarity", { type: "string", enum: [...BADGE_RARITY_VALUES] })],
+        responseSchema: {
+          type: "object",
+          properties: {
+            agentId: { type: "string" },
+            badges: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  badgeId: { type: "string" },
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  rarity: { type: "string", enum: [...BADGE_RARITY_VALUES] },
+                  earnedAt: { type: "string", format: "date-time" },
+                  xpValue: { type: "integer" },
+                },
+                required: ["badgeId", "name", "description", "rarity", "earnedAt", "xpValue"],
+              },
+            },
+            total: { type: "integer" },
+          },
+          required: ["agentId", "badges", "total"],
+        },
+        responses: { 404: notFound },
+      }),
+    },
+    "/api/badges": {
+      get: op("Agents", "List badge catalog with earnedByCount", [], undefined, {
+        query: [queryParam("rarity", { type: "string", enum: [...BADGE_RARITY_VALUES] })],
+        responseSchema: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              badgeId: { type: "string" },
+              name: { type: "string" },
+              description: { type: "string" },
+              rarity: { type: "string", enum: [...BADGE_RARITY_VALUES] },
+              xpValue: { type: "integer" },
+              earnedByCount: { type: "integer" },
+            },
+            required: ["badgeId", "name", "description", "rarity", "xpValue", "earnedByCount"],
           },
         },
       }),
