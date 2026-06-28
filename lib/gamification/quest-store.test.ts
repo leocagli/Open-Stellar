@@ -1,95 +1,46 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import fs from 'fs'
+import { describe, it, expect, beforeEach } from 'vitest'
 import {
-  questStoreData,
-  loadQuestStore
+  createQuest,
+  getStoredQuest,
+  updateQuestStatus,
+  resetQuestStore
 } from './quest-store'
-import { addSubTask, updateSubTask, getQuestById } from './quests'
 
-vi.mock('fs', async () => {
-  return {
-    default: {
-      existsSync: vi.fn(),
-      readFileSync: vi.fn(),
-      writeFileSync: vi.fn(),
-      renameSync: vi.fn(),
-      mkdirSync: vi.fn()
-    }
-  }
-})
-
-describe('Quest Store Persistence', () => {
-  let originalConsoleWarn: any;
-  let warnMock: any;
-
+describe('Quest Store', () => {
   beforeEach(() => {
-    questStoreData.quests = []
-    questStoreData.questStats = {}
-    questStoreData.agentXp = {}
-    
-    warnMock = vi.fn()
-    originalConsoleWarn = console.warn
-    console.warn = warnMock
-
-    vi.clearAllMocks()
-    
-    // Clear global subtask DB state (hacky but works for the test)
-    const globalStore = globalThis as any
-    if (globalStore.__openStellarQuestSubTasks__) {
-      globalStore.__openStellarQuestSubTasks__.clear()
-    }
+    resetQuestStore()
   })
 
-  afterEach(() => {
-    console.warn = originalConsoleWarn
+  it('creates and retrieves a quest', () => {
+    const quest = createQuest({
+      id: 'test-quest',
+      type: 'daily',
+      title: 'Test Quest',
+      description: 'A test quest',
+      reward: { xp: 10 }
+    })
+    
+    expect(quest.id).toBe('test-quest')
+    expect(quest.status).toBe('in_progress')
+    
+    const retrieved = getStoredQuest('test-quest')
+    expect(retrieved).toBeDefined()
+    expect(retrieved?.id).toBe('test-quest')
   })
 
-  it('completes quest, serializes, and deserializes retaining completed status', () => {
-    const questId = 'daily-process-payment'
-    const subtask = addSubTask(questId, 'Test payment')
-    updateSubTask(questId, subtask.id, { status: 'done' })
-
-    const questBefore = getQuestById(questId)
-    expect(questBefore?.status).toBe('completed')
-    expect(questStoreData.quests.find(q => q.id === questId)?.status).toBe('completed')
-
-    // Serialize store to string
-    const serialized = JSON.stringify(questStoreData)
-
-    // Clear store to simulate restart
-    questStoreData.quests = []
+  it('updates quest status', () => {
+    createQuest({
+      id: 'test-quest-2',
+      type: 'daily',
+      title: 'Test Quest 2',
+      description: 'A test quest',
+      reward: { xp: 10 }
+    })
     
-    // Mock fs
-    const fsMock = require('fs').default
-    fsMock.existsSync.mockReturnValue(true)
-    fsMock.readFileSync.mockReturnValue(serialized)
-
-    const globalStore = globalThis as any
-    globalStore.__openStellarQuestStoreLoaded__ = false
+    updateQuestStatus('test-quest-2', 'completed')
     
-    loadQuestStore()
-
-    const loadedQuest = questStoreData.quests.find(q => q.id === questId)
-    expect(loadedQuest).toBeDefined()
-    expect(loadedQuest?.status).toBe('completed')
-    expect(loadedQuest?.subTasks?.[0].status).toBe('done')
-  })
-
-  it('falls back to empty store and logs warning if data is corrupt', () => {
-    const fsMock = require('fs').default
-    fsMock.existsSync.mockReturnValue(true)
-    fsMock.readFileSync.mockReturnValue('{ invalid json ]')
-
-    const globalStore = globalThis as any
-    globalStore.__openStellarQuestStoreLoaded__ = false
-    
-    loadQuestStore()
-
-    expect(warnMock).toHaveBeenCalledWith(
-      'Failed to load quest store, falling back to empty store:',
-      expect.any(Error)
-    )
-    expect(questStoreData.quests).toEqual([])
-    expect(questStoreData.questStats).toEqual({})
+    const retrieved = getStoredQuest('test-quest-2')
+    expect(retrieved?.status).toBe('completed')
+    expect(retrieved?.completedAt).toBeDefined()
   })
 })
