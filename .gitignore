@@ -18,3 +18,7 @@ node_modules
 
 # Local file-backed stores
 .data/
+
+# Build and debug files
+*.tsbuildinfo
+*.log
