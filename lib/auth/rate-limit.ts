@@ -68,7 +68,7 @@ function kvConfig(): { url: string; token: string } | null {
   return url && token ? { url, token } : null
 }
 
-async function kvPipeline(commands: unknown[][]): Promise<Array<unknown | null> | null> {
+async function kvPipeline(commands: unknown[][]): Promise<unknown[] | null> {
   const config = kvConfig()
   if (!config) return null
 
@@ -98,7 +98,7 @@ function gc(now: number): void {
   if (now - lastGc < GC_INTERVAL) return
   lastGc = now
   for (const [key, timestamps] of MEMORY_WINDOWS) {
-    const latest = timestamps[timestamps.length - 1]
+    const latest = timestamps.at(-1)
     if (!latest || now - latest > 120_000) MEMORY_WINDOWS.delete(key)
   }
 }
@@ -138,7 +138,7 @@ export async function rateLimit(
   const windowStart = now - limits.windowMs
   const kvResults = await kvPipeline([
     ["ZREMRANGEBYSCORE", key, 0, windowStart],
-    ["ZADD", key, now, `${now}:${Math.random().toString(36).slice(2)}`],
+    ["ZADD", key, now, `${now}:${crypto.randomUUID()}`],
     ["ZCARD", key],
     ["ZRANGE", key, 0, 0, "WITHSCORES"],
     ["PEXPIRE", key, limits.windowMs],
