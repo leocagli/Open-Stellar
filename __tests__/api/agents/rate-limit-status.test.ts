@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { GET } from "@/app/api/agents/[id]/rate-limit/status/route"
 
+const TEST_TOKEN = "test-token"
+
 const { getRateLimitStatus } = vi.hoisted(() => ({
   getRateLimitStatus: vi.fn(),
 }))
@@ -15,7 +17,16 @@ function context(id: string) {
 
 describe("GET /api/agents/[id]/rate-limit/status", () => {
   beforeEach(() => {
+    process.env.MOLTBOT_GATEWAY_TOKEN = TEST_TOKEN
     vi.clearAllMocks()
+  })
+
+  it("returns 401 for unauthorized requests", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/agents/bot-1/rate-limit/status"),
+      context("bot-1"),
+    )
+    expect(response.status).toBe(401)
   })
 
   it("returns the current rate-limit status for the requested agent", async () => {
@@ -28,7 +39,9 @@ describe("GET /api/agents/[id]/rate-limit/status", () => {
     })
 
     const response = await GET(
-      new Request("http://localhost/api/agents/bot-1/rate-limit/status"),
+      new Request("http://localhost/api/agents/bot-1/rate-limit/status", {
+        headers: { Authorization: `Bearer ${TEST_TOKEN}` }
+      }),
       context("bot-1"),
     )
     const data = await response.json()
