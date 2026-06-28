@@ -4,12 +4,12 @@ import { isIpBlocked } from "@/lib/auth/blocklist"
 import { apiKeyTier, enforceDdosLimit, limitForTier, rateLimit } from "@/lib/auth/rate-limit"
 
 const ALLOWLISTED_USER_AGENTS = [/vercel/i, /vercelbot/i, /uptime/i, /health/i]
-const INTERNAL_HEALTH_PATHS = ["/api/cron/health-check"]
-const SENSITIVE_CLI_BLOCK_PATHS = [
+const INTERNAL_HEALTH_PATHS = new Set(["/api/cron/health-check"])
+const SENSITIVE_CLI_BLOCK_PATHS = new Set([
   "/api/protocol/x402/quote",
   "/api/protocol/x402/settle",
   "/api/protocol/passport/authorize",
-]
+])
 const CLI_USER_AGENT_PATTERN = /\b(curl|wget|httpie|python-requests|go-http-client)\b/i
 
 function getClientIp(req: NextRequest): string {
@@ -32,7 +32,7 @@ function getApiKey(req: NextRequest): string | null {
 
 function isAllowlisted(req: NextRequest): boolean {
   const userAgent = req.headers.get("user-agent") ?? ""
-  if (INTERNAL_HEALTH_PATHS.includes(req.nextUrl.pathname)) return true
+  if (INTERNAL_HEALTH_PATHS.has(req.nextUrl.pathname)) return true
   return ALLOWLISTED_USER_AGENTS.some((pattern) => pattern.test(userAgent))
 }
 
@@ -64,7 +64,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   const userAgent = req.headers.get("user-agent")
   if (!userAgent) return blockResponse("missing_user_agent")
 
-  if (SENSITIVE_CLI_BLOCK_PATHS.includes(path) && CLI_USER_AGENT_PATTERN.test(userAgent)) {
+  if (SENSITIVE_CLI_BLOCK_PATHS.has(path) && CLI_USER_AGENT_PATTERN.test(userAgent)) {
     console.warn("bot_request_blocked", { ip, path, userAgent })
     return blockResponse("bot_detected")
   }
