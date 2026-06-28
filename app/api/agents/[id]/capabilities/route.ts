@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { apiError } from "@/lib/api/error"
 import { getRegisteredAgent, updateAgentCapabilities } from "@/lib/agent-registry"
 import { getReputation } from "@/lib/reputation/reputation-store"
 import { getAgentQuestStats } from "@/lib/gamification/quest-leaderboard"
@@ -15,7 +16,7 @@ export async function GET(req: Request, context: RouteContext) {
 
   const agent = getRegisteredAgent(agentId)
   if (!agent) {
-    return NextResponse.json({ ok: false, error: "agent not found" }, { status: 404 })
+    return apiError("agent not found", "AGENT_NOT_FOUND", 404)
   }
 
   const reputation = getReputation(agentId)
@@ -52,9 +53,6 @@ export async function PUT(req: Request, context: RouteContext) {
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed updating capabilities"
-    return NextResponse.json(
-      { ok: false, error: message },
-      { status: message === "agent not found" ? 404 : 400 },
-    )
+    return apiError(message, message === "agent not found" ? "AGENT_NOT_FOUND" : "INVALID_CAPABILITIES", message === "agent not found" ? 404 : 400)
   }
 }

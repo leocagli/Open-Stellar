@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { apiError } from "@/lib/api/error"
 import { unsubscribeEmail, verifyUnsubscribeToken } from "@/lib/email/resend"
 
 export async function GET(req: Request) {
@@ -7,7 +8,7 @@ export async function GET(req: Request) {
   const token = url.searchParams.get("token") || ""
 
   if (!email || !token || !verifyUnsubscribeToken(email, token)) {
-    return NextResponse.json({ ok: false, error: "Invalid unsubscribe link" }, { status: 400 })
+    return apiError("Invalid unsubscribe link", "INVALID_UNSUBSCRIBE_LINK", 400)
   }
 
   unsubscribeEmail(email)
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { email?: string; token?: string }
 
   if (!body.email || !body.token || !verifyUnsubscribeToken(body.email, body.token)) {
-    return NextResponse.json({ ok: false, error: "Invalid unsubscribe request" }, { status: 400 })
+    return apiError("Invalid unsubscribe request", "INVALID_UNSUBSCRIBE_REQUEST", 400)
   }
 
   const preferences = unsubscribeEmail(body.email)

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { apiError } from "@/lib/api/error"
 import { moveAgentPosition } from "@/lib/agents/agent-position-store"
 import { isAuthorized } from "@/lib/auth"
 
@@ -8,7 +9,7 @@ interface RouteContext {
 
 export async function POST(req: Request, context: RouteContext) {
   if (!isAuthorized(req)) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+    return apiError("Unauthorized", "UNAUTHORIZED", 401)
   }
 
   try {
@@ -20,9 +21,6 @@ export async function POST(req: Request, context: RouteContext) {
       { headers: { "Cache-Control": "no-store" } },
     )
   } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Failed moving agent" },
-      { status: 400 },
-    )
+    return apiError(error instanceof Error ? error.message : "Failed moving agent", "FAILED_MOVING_AGENT", 400)
   }
 }

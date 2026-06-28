@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { apiError } from "@/lib/api/error"
 import {
   agentMessageStreamHeaders,
   createAgentMessageStream,
@@ -33,7 +34,7 @@ export async function POST(req: Request, context: MessageRouteContext) {
   const type = body.type
 
   if (!isAgentMessageType(type)) {
-    return NextResponse.json({ ok: false, error: "Unsupported message type" }, { status: 400 })
+    return apiError("Unsupported message type", "UNSUPPORTED_MESSAGE_TYPE", 400)
   }
 
   try {
@@ -48,9 +49,6 @@ export async function POST(req: Request, context: MessageRouteContext) {
 
     return NextResponse.json({ ok: true, message }, { status: 201 })
   } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Failed sending message" },
-      { status: 400 },
-    )
+    return apiError(error instanceof Error ? error.message : "Failed sending message", "FAILED_SENDING_MESSAGE", 400)
   }
 }

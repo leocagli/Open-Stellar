@@ -3,9 +3,25 @@ import { NextResponse } from "next/server"
 import { NOTIFICATION_TYPES } from "@/lib/notifications/notification-store"
 import { BADGE_RARITY_VALUES } from "@/lib/gamification/badge-catalog"
 
+const apiErrorSchema = {
+  type: "object",
+  properties: {
+    ok: { type: "boolean", enum: [false] },
+    error: { type: "string" },
+    code: { type: "string" },
+  },
+  required: ["ok", "error"],
+}
+
 const json = { "application/json": { schema: { type: "object" } } }
-const error = { description: "Error", content: json }
-const notFound = { description: "Not found", content: json }
+const error = {
+  description: "Error",
+  content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+}
+const notFound = {
+  description: "Not found",
+  content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+}
 const rateLimit = {
   description: "Too Many Requests",
   headers: {
@@ -100,6 +116,11 @@ const spec = {
   tags: [
     { name: "Agents" }, { name: "Protocol" }, { name: "Stellar" }, { name: "Events" }, { name: "Webhooks" }, { name: "Admin" }, { name: "User" }, { name: "Explorer" }, { name: "Prices" }, { name: "Notifications" }, { name: "Quests" }, { name: "Leaderboard" },
   ],
+  components: {
+    schemas: {
+      ApiError: apiErrorSchema,
+    },
+  },
   paths: {
     "/api/agents/{id}/task": {
       get: op("Agents", "List task records for an agent", ["id"], undefined, {

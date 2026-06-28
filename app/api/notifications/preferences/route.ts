@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { apiError } from "@/lib/api/error"
 import {
   NOTIFICATION_TYPES,
   type NotificationType,
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
   const agentId = searchParams.get("agentId")?.trim()
 
   if (!agentId) {
-    return NextResponse.json({ ok: false, error: "agentId is required" }, { status: 400 })
+    return apiError("agentId is required", "AGENT_ID_REQUIRED", 400)
   }
 
   return NextResponse.json({
@@ -35,18 +36,15 @@ export async function PATCH(req: Request) {
     const agentId = typeof body.agentId === "string" ? body.agentId.trim() : ""
 
     if (!agentId) {
-      return NextResponse.json({ ok: false, error: "agentId is required" }, { status: 400 })
+      return apiError("agentId is required", "AGENT_ID_REQUIRED", 400)
     }
     if (!Array.isArray(body.muted)) {
-      return NextResponse.json({ ok: false, error: "muted must be an array" }, { status: 400 })
+      return apiError("muted must be an array", "MUTED_MUST_BE_ARRAY", 400)
     }
 
     const invalidType = body.muted.find((type: unknown) => !isNotificationType(type))
     if (invalidType !== undefined) {
-      return NextResponse.json(
-        { ok: false, error: `muted contains invalid notification type: ${String(invalidType)}` },
-        { status: 400 },
-      )
+      return apiError(`muted contains invalid notification type: ${String(invalidType)}`, "INVALID_NOTIFICATION_TYPE", 400)
     }
 
     return NextResponse.json({
@@ -54,6 +52,6 @@ export async function PATCH(req: Request) {
       ...setNotificationPreferences(agentId, body.muted),
     })
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 })
+    return apiError("Invalid JSON body", "INVALID_JSON_BODY", 400)
   }
 }

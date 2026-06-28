@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { apiError } from "@/lib/api/error"
 import {
   getUnreadNotificationCount,
   listUnseenNotifications,
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
   const agentId = searchParams.get("agentId")?.trim()
 
   if (!agentId) {
-    return NextResponse.json({ ok: false, error: "agentId is required" }, { status: 400 })
+    return apiError("agentId is required", "AGENT_ID_REQUIRED", 400)
   }
 
   const notifications = listUnseenNotifications(agentId, {
@@ -44,15 +45,12 @@ export async function POST(req: Request) {
     const agentId = String(body.agentId ?? searchParams.get("agentId") ?? "").trim()
 
     if (!agentId) {
-      return NextResponse.json({ ok: false, error: "agentId is required" }, { status: 400 })
+      return apiError("agentId is required", "AGENT_ID_REQUIRED", 400)
     }
 
     const markedRead = markAllNotificationsRead(agentId)
     return NextResponse.json({ ok: true, agentId, markedRead, unreadCount: getUnreadNotificationCount(agentId) })
   } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Failed marking notifications read" },
-      { status: 500 },
-    )
+    return apiError(error instanceof Error ? error.message : "Failed marking notifications read", "FAILED_MARKING_NOTIFICATIONS_READ", 500)
   }
 }

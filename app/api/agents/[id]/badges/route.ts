@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { apiError } from "@/lib/api/error"
 import { getRegisteredAgent } from "@/lib/agent-registry"
 import { getReputation } from "@/lib/reputation/reputation-store"
 import { getBadgeCatalogEntry, BADGE_RARITY_VALUES, type BadgeRarity } from "@/lib/gamification/badge-catalog"
@@ -13,15 +14,12 @@ export async function GET(req: Request, context: RouteContext) {
 
   const agent = getRegisteredAgent(agentId)
   if (!agent) {
-    return NextResponse.json({ ok: false, error: "agent not found" }, { status: 404 })
+    return apiError("agent not found", "AGENT_NOT_FOUND", 404)
   }
 
   const rarityFilter = new URL(req.url).searchParams.get("rarity")
   if (rarityFilter !== null && !(BADGE_RARITY_VALUES as readonly string[]).includes(rarityFilter)) {
-    return NextResponse.json(
-      { ok: false, error: `invalid rarity "${rarityFilter}"; must be one of: ${BADGE_RARITY_VALUES.join(", ")}` },
-      { status: 400 },
-    )
+    return apiError(`invalid rarity "${rarityFilter}"; must be one of: ${BADGE_RARITY_VALUES.join(", ")}`, "INVALID_RARITY", 400)
   }
 
   const { metrics } = getReputation(agentId)

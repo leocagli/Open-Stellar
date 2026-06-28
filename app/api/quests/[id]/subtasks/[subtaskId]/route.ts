@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { apiError } from "@/lib/api/error"
 import { getQuestById, getSubTasks, updateSubTask } from "@/lib/gamification/quests"
 
 type Context = {
@@ -89,19 +90,19 @@ export async function PATCH(req: Request, context: Context) {
   const quest = getQuestById(questId)
 
   if (!quest) {
-    return NextResponse.json({ ok: false, error: "Quest not found" }, { status: 404 })
+    return apiError("Quest not found", "QUEST_NOT_FOUND", 404)
   }
 
   const subtasks = getSubTasks(questId)
   const subtask = subtasks.find((st) => st.id === decodedSubTaskId)
   if (!subtask) {
-    return NextResponse.json({ ok: false, error: "Subtask not found" }, { status: 404 })
+    return apiError("Subtask not found", "SUBTASK_NOT_FOUND", 404)
   }
 
   try {
     const body = await req.json()
     if (!body || typeof body !== "object") {
-      return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 })
+      return apiError("Invalid JSON body", "INVALID_JSON_BODY", 400)
     }
 
     const updates: {
@@ -112,7 +113,7 @@ export async function PATCH(req: Request, context: Context) {
 
     if (body.status !== undefined) {
       if (body.status !== "pending" && body.status !== "in_progress" && body.status !== "done") {
-        return NextResponse.json({ ok: false, error: "Invalid status value" }, { status: 400 })
+        return apiError("Invalid status value", "INVALID_STATUS_VALUE", 400)
       }
       updates.status = body.status
     }
@@ -131,10 +132,7 @@ export async function PATCH(req: Request, context: Context) {
     if (updates.dependsOn !== undefined) {
       const cycle = detectCycle(subtasks, decodedSubTaskId, updates.dependsOn)
       if (cycle) {
-        return NextResponse.json(
-          { ok: false, error: "circular_dependency", cycle },
-          { status: 422 }
-        )
+        return apiError("circular_dependency", "CIRCULAR_DEPENDENCY", 422)
       }
     }
     // -----------------------
@@ -147,20 +145,17 @@ export async function PATCH(req: Request, context: Context) {
       })
 
       if (missing.length > 0) {
-        return NextResponse.json(
-          { ok: false, reason: "prerequisite_incomplete", missing },
-          { status: 409 }
-        )
+        return apiError("prerequisite_incomplete", "PREREQUISITE_INCOMPLETE", 409)
       }
     }
 
     const updatedSubTask = updateSubTask(questId, decodedSubTaskId, updates)
     if (!updatedSubTask) {
-      return NextResponse.json({ ok: false, error: "Failed to update subtask" }, { status: 500 })
+      return apiError("Failed to update subtask", "FAILED_TO_UPDATE_SUBTASK", 500)
     }
 
     return NextResponse.json({ ok: true, subTask: updatedSubTask })
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 })
+    return apiError("Invalid JSON body", "INVALID_JSON_BODY", 400)
   }
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { apiError } from "@/lib/api/error"
 import { getStoredQuest } from "@/lib/gamification/quest-store"
 import { getQuestById, type Quest } from "@/lib/gamification/quests"
 
@@ -17,7 +18,7 @@ export async function GET(_request: Request, context: QuestChainContext) {
   let currentQuest = getChainQuest(questId)
 
   if (!currentQuest) {
-    return NextResponse.json({ ok: false, error: "Quest not found" }, { status: 404 })
+    return apiError("Quest not found", "QUEST_NOT_FOUND", 404)
   }
 
   const chain: string[] = []
@@ -25,10 +26,7 @@ export async function GET(_request: Request, context: QuestChainContext) {
 
   while (currentQuest) {
     if (visited.has(currentQuest.id)) {
-      return NextResponse.json(
-        { ok: false, error: "cycle_detected" },
-        { status: 400 },
-      )
+      return apiError("cycle_detected", "CYCLE_DETECTED", 400)
     }
 
     visited.add(currentQuest.id)

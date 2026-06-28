@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { apiError } from "@/lib/api/error"
 import { createUnsubscribeUrl, emails, getEmailPreferences } from "@/lib/email/resend"
 
 function isCronAuthorized(req: Request): boolean {
@@ -43,7 +44,7 @@ async function sendWeeklyReports() {
 
 export async function GET(req: Request) {
   if (!isCronAuthorized(req)) {
-    return NextResponse.json({ ok: false, error: "Unauthorized cron request" }, { status: 401 })
+    return apiError("Unauthorized cron request", "UNAUTHORIZED_CRON_REQUEST", 401)
   }
 
   const results = await sendWeeklyReports()

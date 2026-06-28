@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { apiError } from "@/lib/api/error"
 import { getQuestById } from "@/lib/gamification/quests"
 import { getReputationByActorId } from "@/lib/reputation/reputation-store"
 
@@ -25,14 +26,11 @@ export async function POST(req: Request, context: QuestApplyContext) {
   const quest = getQuestById(decodeURIComponent(id))
 
   if (!quest) {
-    return NextResponse.json({ ok: false, error: "Quest not found" }, { status: 404 })
+    return apiError("Quest not found", "QUEST_NOT_FOUND", 404)
   }
 
   if (quest.subTasks && quest.subTasks.length > 0 && quest.subTasks.some((st) => st.status !== "done")) {
-    return NextResponse.json(
-      { ok: false, error: "Cannot complete quest with pending sub-tasks" },
-      { status: 400 }
-    )
+    return apiError("Cannot complete quest with pending sub-tasks", "PENDING_SUBTASKS", 400)
   }
 
   const body = await readApplyBody(req)
@@ -42,15 +40,7 @@ export async function POST(req: Request, context: QuestApplyContext) {
   const reputation = getReputationByActorId(actorId)
 
   if (quest.minReputation !== undefined && reputation.score < quest.minReputation) {
-    return NextResponse.json(
-      {
-        ok: false,
-        reason: "InsufficientReputation",
-        required: quest.minReputation,
-        current: reputation.score,
-      },
-      { status: 403 },
-    )
+    return apiError("InsufficientReputation", "INSUFFICIENT_REPUTATION", 403)
   }
 
   return NextResponse.json({ ok: true, quest, actorId })

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { apiError } from "@/lib/api/error"
 import { listQuestSubtasks, questExists } from "@/lib/quests"
 import { hasCycle } from "@/lib/graph"
 
@@ -11,7 +12,7 @@ export async function GET(_req: Request, context: RouteContext) {
   const questId = decodeURIComponent(id)
 
   if (!questExists(questId)) {
-    return NextResponse.json({ ok: false, error: "Quest not found", questId }, { status: 404 })
+    return apiError("Quest not found", "QUEST_NOT_FOUND", 404)
   }
 
   const subtasks = listQuestSubtasks(questId) ?? []
