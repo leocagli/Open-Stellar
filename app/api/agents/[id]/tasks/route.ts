@@ -25,7 +25,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     if (overflow) {
       return NextResponse.json(
-        { ok: false, error: "Queue full: max 100 pending tasks per agent" },
+        { ok: false, error: "Queue full: max 300 pending tasks per agent" },
         { status: 429 },
       )
     }
