@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 // Resolve the bootstrap script path relative to the repo root
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const REPO_ROOT = path.resolve(__dirname, '..', '..', '..')
+const REPO_ROOT = path.resolve(__dirname, '..', '..')
 const BOOTSTRAP = path.join(REPO_ROOT, 'scripts', 'cli', 'bootstrap.mjs')
 
 /** Run the bootstrap script synchronously; returns { stdout, stderr, exitCode } */
