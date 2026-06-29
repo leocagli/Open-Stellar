@@ -14,7 +14,7 @@ describe("GET /api/agents/leaderboard", () => {
     const res = await GET(req)
     expect(res.status).toBe(400)
     const json = await res.json()
-    expect(json.error).toBe("Bad Request")
+    expect(json.error).toBe("Bad Request: Limit cannot exceed 100")
   })
 
   it("sorts by XP by default and applies limits", async () => {
