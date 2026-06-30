@@ -211,3 +211,38 @@ export function retryDeadLetterTask(id: string): QueuedTask {
   queueState.tasks.set(id, retry)
   return retry
 }
+
+export function peekNext(agentId?: string): QueuedTask | null {
+  const pending = listTasks({ agentId, status: "pending" })
+  return pending[0] || null
+}
+
+export function dequeue(agentId?: string): QueuedTask | null {
+  const next = peekNext(agentId)
+  if (!next) return null
+  const updated = {
+    ...next,
+    status: "leased" as const,
+    updatedAt: new Date().toISOString(),
+  }
+  queueState.tasks.set(next.id, updated)
+  return updated
+}
+
+export function retryAll(): number {
+  let count = 0
+  for (const task of queueState.tasks.values()) {
+    if (task.status === "dead-letter") {
+      queueState.tasks.set(task.id, {
+        ...task,
+        status: "pending",
+        retryCount: 0,
+        scheduledFor: undefined,
+        deadLetteredAt: undefined,
+        updatedAt: new Date().toISOString(),
+      })
+      count++
+    }
+  }
+  return count
+}
