@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { POST as drainPost } from "@/app/api/agents/[id]/tasks/drain/route"
-import { POST as createPost, DELETE as purgeDel } from "@/app/api/agents/[id]/tasks/route"
+import { POST as drainPost } from "@/app/api/agents/\[id\]/tasks/drain/route"
+import { POST as createPost, DELETE as purgeDel } from "@/app/api/agents/\[id\]/tasks/route"
 import { resetTaskQueue } from "@/lib/agents/task-queue"
 
 async function mockContext(params: Record<string, string>) {
@@ -110,7 +110,7 @@ describe("POST /api/agents/:id/tasks/drain", () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.processed).toBe(50) // Default is 50
+    expect(data.processed).toBe(50)
   })
 
   it("returns 409 on concurrent drain attempts", async () => {
@@ -118,14 +118,12 @@ describe("POST /api/agents/:id/tasks/drain", () => {
       await createTask("agent-1", `task-${i}`)
     }
 
-    // Start first drain
     const req1 = new Request("http://localhost/api/agents/agent-1/tasks/drain", {
       method: "POST",
     })
     const context1 = await mockContext({ id: "agent-1" })
     const promise1 = drainPost(req1, context1)
 
-    // Immediately try second drain
     const req2 = new Request("http://localhost/api/agents/agent-1/tasks/drain", {
       method: "POST",
     })
@@ -137,7 +135,6 @@ describe("POST /api/agents/:id/tasks/drain", () => {
     expect(data2.ok).toBe(false)
     expect(data2.error).toContain("already in progress")
 
-    // Wait for first drain to complete
     await promise1
   })
 
@@ -213,7 +210,6 @@ describe("DELETE /api/agents/:id/tasks", () => {
 
     expect(data.purged).toBe(2)
 
-    // Verify agent-2 tasks remain
     const req2 = new Request("http://localhost/api/agents/agent-2/tasks/drain", {
       method: "POST",
     })
@@ -235,7 +231,6 @@ describe("drain + purge integration", () => {
       await createTask("agent-1", `task-${i}`)
     }
 
-    // Drain 10
     const drainReq = new Request("http://localhost/api/agents/agent-1/tasks/drain", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -246,7 +241,6 @@ describe("drain + purge integration", () => {
     const drainData = await drainRes.json()
     expect(drainData.processed).toBe(10)
 
-    // Purge remaining
     const purgeReq = new Request("http://localhost/api/agents/agent-1/tasks", {
       method: "DELETE",
     })
@@ -260,14 +254,12 @@ describe("drain + purge integration", () => {
     await createTask("agent-1", "task-a")
     await createTask("agent-1", "task-b")
 
-    // Purge all
     const purgeReq = new Request("http://localhost/api/agents/agent-1/tasks", {
       method: "DELETE",
     })
     const purgeContext = await mockContext({ id: "agent-1" })
     await purgeDel(purgeReq, purgeContext)
 
-    // Try drain
     const drainReq = new Request("http://localhost/api/agents/agent-1/tasks/drain", {
       method: "POST",
     })

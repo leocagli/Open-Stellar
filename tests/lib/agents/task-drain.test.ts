@@ -72,7 +72,7 @@ describe("task-queue drain and purge", () => {
         createTask("agent-1", { type: `task-${i}`, payload: {} })
       }
 
-      const { result } = await drainAgentTasks("agent-1", { maxItems: 300 })
+      const { result } = await drainAgentTasks("agent-1", { maxItems: 200 })
 
       expect(result).not.toBeNull()
       // MAX_PENDING_PER_AGENT=100 limits queue to 100 tasks
@@ -194,7 +194,7 @@ describe("task-queue drain and purge", () => {
   })
 
   describe("purgeAgentTasks", () => {
-    it("purges all pending tasks", () => {
+    it("purges all pending tasks", async () => {
       createTask("agent-1", { type: "a", payload: {} })
       createTask("agent-1", { type: "b", payload: {} })
       createTask("agent-1", { type: "c", payload: {} })
@@ -254,7 +254,7 @@ describe("task-queue drain and purge", () => {
       expect(stats.totalAgents).toBe(0)
     })
 
-    it("handles partial purge correctly", () => {
+    it("handles partial purge correctly", async () => {
       createTask("agent-1", { type: "a", payload: {} })
       createTask("agent-1", { type: "b", payload: {} })
 
